@@ -22,22 +22,26 @@ export default {
 
     const url = new URL(request.url);
 
-    // --- GET /contacts?token=...&fmt=html → contactenoverzicht ---
+    // --- GET /contacts → inlogscherm of contactenoverzicht ---
     if (url.pathname === '/contacts' && request.method === 'GET') {
-      const token = url.searchParams.get('token');
-      if (!env.CONTACTS_TOKEN || token !== env.CONTACTS_TOKEN) {
-        return new Response('Unauthorized', { status: 401 });
+      return new Response(loginHtml(), {
+        headers: { 'Content-Type': 'text/html;charset=UTF-8' }
+      });
+    }
+
+    // --- POST /contacts/login → token controleren, contacten tonen ---
+    if (url.pathname === '/contacts/login' && request.method === 'POST') {
+      let body;
+      try { body = await request.json(); } catch { return new Response('Bad request', { status: 400 }); }
+      if (!env.CONTACTS_TOKEN || body.token !== env.CONTACTS_TOKEN) {
+        return new Response(JSON.stringify({ error: 'Ongeldig wachtwoord' }), {
+          status: 401, headers: { ...CORS, 'Content-Type': 'application/json' }
+        });
       }
       const { results } = await env.DB.prepare(
         'SELECT * FROM contacts ORDER BY scanned_at DESC'
       ).all();
-
-      if (url.searchParams.get('fmt') === 'html') {
-        return new Response(contactsHtml(results), {
-          headers: { ...CORS, 'Content-Type': 'text/html;charset=UTF-8' }
-        });
-      }
-      return new Response(JSON.stringify(results, null, 2), {
+      return new Response(JSON.stringify(results), {
         headers: { ...CORS, 'Content-Type': 'application/json' }
       });
     }
@@ -86,6 +90,53 @@ function unauthorized() {
   return new Response(JSON.stringify({ error: { message: 'Ongeldige pincode' } }), {
     status: 401, headers: { ...CORS, 'Content-Type': 'application/json' }
   });
+}
+
+function loginHtml() {
+  return `<!DOCTYPE html>
+<html lang="nl"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Contacten — inloggen</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#faf8f4;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;}
+  .card{background:#fff;border-radius:16px;padding:32px 28px;width:100%;max-width:340px;box-shadow:0 2px 16px rgba(0,0,0,.08);}
+  h1{font-size:20px;font-weight:700;margin:0 0 6px;}
+  p{color:#7a7367;font-size:14px;margin:0 0 20px;}
+  input{width:100%;padding:12px 14px;border:1.5px solid #e4ddd1;border-radius:10px;font-size:16px;outline:none;}
+  input:focus{border-color:#c4501c;}
+  button{width:100%;margin-top:12px;padding:13px;background:#c4501c;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;}
+  button:active{background:#a83210;}
+  .err{color:#a83210;font-size:13px;margin-top:10px;display:none;}
+</style></head>
+<body><div class="card">
+  <h1>Gescande contacten</h1>
+  <p>Vul het wachtwoord in om je contacten te bekijken.</p>
+  <input type="password" id="pw" placeholder="Wachtwoord" autofocus>
+  <button onclick="login()">Inloggen</button>
+  <div class="err" id="err">Ongeldig wachtwoord</div>
+</div>
+<script>
+async function login() {
+  const pw = document.getElementById('pw').value;
+  const err = document.getElementById('err');
+  err.style.display = 'none';
+  const res = await fetch('/contacts/login', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({token: pw})
+  });
+  if (!res.ok) { err.style.display = 'block'; return; }
+  const rows = await res.json();
+  document.open(); document.write(renderTable(rows)); document.close();
+}
+document.getElementById('pw').addEventListener('keydown', e => { if(e.key==='Enter') login(); });
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function renderTable(rows){
+  const r=rows.map(r=>\`<tr><td>\${esc(r.name)}</td><td>\${esc(r.org)}</td><td>\${esc(r.title)}</td><td><a href="tel:\${esc(r.phone)}">\${esc(r.phone)}</a></td><td><a href="mailto:\${esc(r.email)}">\${esc(r.email)}</a></td><td>\${r.website?\`<a href="\${esc(r.website)}" target="_blank">\${esc(r.website)}</a>\`:''}</td><td>\${esc((r.scanned_at||'').slice(0,10))}</td></tr>\`).join('');
+  return \`<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contacten</title><style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:20px;max-width:960px;margin:0 auto;}h1{font-size:22px;font-weight:700;margin-bottom:4px;}.sub{color:#7a7367;font-size:13px;margin-bottom:16px;}table{width:100%;border-collapse:collapse;font-size:13px;}th{text-align:left;padding:8px 10px;background:#f0ece4;border-bottom:2px solid #e4ddd1;font-size:11px;text-transform:uppercase;letter-spacing:.06em;}td{padding:8px 10px;border-bottom:1px solid #f0ece4;vertical-align:top;}tr:hover td{background:#faf8f4;}a{color:#c4501c;text-decoration:none;}</style></head><body><h1>Gescande contacten</h1><p class="sub">\${rows.length} contact\${rows.length!==1?'en':''}</p><table><thead><tr><th>Naam</th><th>Bedrijf</th><th>Functie</th><th>Telefoon</th><th>E-mail</th><th>Website</th><th>Datum</th></tr></thead><tbody>\${r}</tbody></table></body></html>\`;
+}
+</script></body></html>`;
 }
 
 function contactsHtml(rows) {
