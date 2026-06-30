@@ -255,21 +255,20 @@
 
 <main>
 
-  <!-- Stap 0: API-sleutel -->
+  <!-- Stap 0: Pincode -->
   <div class="panel" id="apiPanel">
-    <p class="section-title"><span class="num">0</span>Claude API-sleutel</p>
+    <p class="section-title"><span class="num">0</span>Pincode</p>
     <div class="field api-key-field">
-      <label for="apiKeyInput">API-sleutel</label>
-      <input id="apiKeyInput" type="password" placeholder="sk-ant-api03-…" autocomplete="off" spellcheck="false">
+      <label for="apiKeyInput">App-pincode</label>
+      <input id="apiKeyInput" type="password" placeholder="••••" autocomplete="off" inputmode="numeric" maxlength="20">
     </div>
     <div class="save-key-row">
       <input type="checkbox" id="saveKeyCheck" checked>
-      <label for="saveKeyCheck">Sla sleutel op in dit apparaat (localStorage)</label>
+      <label for="saveKeyCheck">Onthoud pincode op dit apparaat</label>
     </div>
     <p class="api-key-hint">
-      Nog geen sleutel? Maak er gratis een aan op
-      <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>.
-      De sleutel wordt alleen vanaf jouw telefoon gebruikt en nooit ergens anders opgeslagen.
+      Vul de pincode in die je in Cloudflare hebt ingesteld als <strong>APP_PIN</strong>.
+      De pincode wordt alleen lokaal opgeslagen en nooit verstuurd naar derden.
     </p>
     <div style="margin-top:12px">
       <button class="btn btn-secondary" id="testApiBtn" style="font-size:14px;padding:10px 16px">Test verbinding</button>
@@ -621,15 +620,15 @@ function cropAndWarpCard(img) {
 
 // --- Claude API aanroepen ---
 async function analyzeCard(file) {
-  const apiKey = apiKeyInput.value.trim();
-  if (!apiKey) {
-    showError('Voer eerst een API-sleutel in (zie stap 0 hierboven).');
+  const pin = apiKeyInput.value.trim();
+  if (!pin) {
+    showError('Voer eerst de pincode in (zie stap 0 hierboven).');
     retryWrap.classList.remove('hidden');
     return;
   }
 
   if (saveKeyCheck.checked) {
-    try { localStorage.setItem(STORAGE_KEY, apiKey); } catch(e) {}
+    try { localStorage.setItem(STORAGE_KEY, pin); } catch(e) {}
   }
 
   setStatus('Kaartje uitknippen…');
@@ -660,12 +659,11 @@ Formaat:
 
   let responseBody;
   try {
-    const res = await fetch('https://autumn-sun-7aa9.oualidsajri.workers.dev', {
+    const res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: {
-        'x-api-key': apiKey,
+        'x-app-pin': pin,
         'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-calls': 'true',
         'content-type': 'application/json',
       },
       body: JSON.stringify({
@@ -800,7 +798,10 @@ async function saveContactToDb(f) {
   try {
     const res = await fetch(WORKER_URL + '/contacts', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-app-pin': apiKeyInput.value.trim(),
+      },
       body: JSON.stringify(f),
     });
     if (res.ok) {
@@ -831,14 +832,14 @@ rescanBtn.addEventListener('click', () => {
 
 // --- Verbindingstest ---
 document.getElementById('testApiBtn').addEventListener('click', async () => {
-  const apiKey = apiKeyInput.value.trim();
+  const pin = apiKeyInput.value.trim();
   const box = document.getElementById('testResult');
   box.style.display = 'block';
 
-  if (!apiKey) {
+  if (!pin) {
     box.style.background = '#fff0ed';
     box.style.color = '#a83210';
-    box.textContent = 'Voer eerst een API-sleutel in.';
+    box.textContent = 'Voer eerst de pincode in.';
     return;
   }
 
@@ -847,12 +848,11 @@ document.getElementById('testApiBtn').addEventListener('click', async () => {
   box.textContent = 'Bezig met verbinden…';
 
   try {
-    const res = await fetch('https://autumn-sun-7aa9.oualidsajri.workers.dev', {
+    const res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: {
-        'x-api-key': apiKey,
+        'x-app-pin': pin,
         'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-calls': 'true',
         'content-type': 'application/json',
       },
       body: JSON.stringify({
@@ -867,6 +867,10 @@ document.getElementById('testApiBtn').addEventListener('click', async () => {
       box.style.background = '#eef6f0';
       box.style.color = '#2f7a4f';
       box.textContent = 'VERBINDING OK\nAntwoord: ' + (data?.content?.[0]?.text || JSON.stringify(data));
+    } else if (res.status === 401) {
+      box.style.background = '#fff0ed';
+      box.style.color = '#a83210';
+      box.textContent = 'ONGELDIGE PINCODE\nControleer je APP_PIN in Cloudflare.';
     } else {
       box.style.background = '#fff0ed';
       box.style.color = '#a83210';
