@@ -618,6 +618,20 @@ function cropAndWarpCard(img) {
   return dstC.toDataURL('image/jpeg', 0.97).split(',')[1];
 }
 
+// --- Telefoonnummer normaliseren ---
+function normalizePhone(raw) {
+  if (!raw) return '';
+  // Verwijder (0) trunk-prefix: "+31 (0) 6..." of "0031 (0) 6..."
+  let n = raw.replace(/\(\s*0\s*\)/g, '');
+  // Verwijder koppeltekens, spaties, punten — bewaar alleen cijfers en leading +
+  const hasPlus = n.trimStart().startsWith('+');
+  n = n.replace(/\D/g, '');
+  // Als het nummer met 00 begint (bijv. 0031), laat het zo
+  // Als er een + was, zet die terug
+  if (hasPlus) n = '+' + n.replace(/^0+/, '');
+  return n;
+}
+
 // --- Claude API aanroepen ---
 async function analyzeCard(file) {
   const pin = apiKeyInput.value.trim();
@@ -724,7 +738,7 @@ Neem telefoonnummers over inclusief landcode als die er staat. Bij meerdere tele
   fields.name.value    = parsed.name    || '';
   fields.org.value     = parsed.org     || '';
   fields.title.value   = parsed.title   || '';
-  fields.phone.value   = parsed.phone   || '';
+  fields.phone.value   = normalizePhone(parsed.phone || '');
   fields.email.value   = parsed.email   || '';
   fields.website.value = parsed.website || '';
 
