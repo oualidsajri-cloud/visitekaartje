@@ -324,6 +324,7 @@
     <div class="stack">
       <button class="btn btn-primary" id="addContactBtn">Voeg toe aan iPhone-Contacten</button>
       <button class="btn btn-secondary" id="rescanBtn">Nieuwe scan</button>
+      <p id="saveStatus" style="display:none;font-size:13px;margin:4px 0 0;text-align:center;"></p>
     </div>
   </div>
 
@@ -748,7 +749,9 @@ function showError(msg) {
   statusText.textContent = 'Herkenning mislukt.';
 }
 
-// --- vCard aanmaken en downloaden ---
+const WORKER_URL = 'https://autumn-sun-7aa9.oualidsajri.workers.dev';
+
+// --- vCard aanmaken en contact opslaan ---
 addContactBtn.addEventListener('click', () => {
   const f = {
     name:    fields.name.value.trim(),
@@ -759,6 +762,7 @@ addContactBtn.addEventListener('click', () => {
     website: fields.website.value.trim(),
   };
 
+  // vCard downloaden voor iPhone-Contacten
   const nameParts = f.name.split(/\s+/);
   const given  = nameParts.shift() || '';
   const family = nameParts.join(' ');
@@ -786,7 +790,31 @@ addContactBtn.addEventListener('click', () => {
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+  // Contact opslaan in database (op de achtergrond)
+  saveContactToDb(f);
 });
+
+async function saveContactToDb(f) {
+  const saveStatus = document.getElementById('saveStatus');
+  try {
+    const res = await fetch(WORKER_URL + '/contacts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(f),
+    });
+    if (res.ok) {
+      saveStatus.textContent = 'Opgeslagen in database ✓';
+      saveStatus.style.color = 'var(--ok)';
+    } else {
+      saveStatus.textContent = 'Database niet gekoppeld (zie instellingen)';
+      saveStatus.style.color = 'var(--muted)';
+    }
+  } catch {
+    saveStatus.textContent = '';
+  }
+  saveStatus.style.display = 'block';
+}
 
 // --- Opnieuw scannen ---
 rescanBtn.addEventListener('click', () => {
@@ -797,6 +825,8 @@ rescanBtn.addEventListener('click', () => {
   cardInput.value = '';
   lastFile = null;
   Object.values(fields).forEach(f => f.value = '');
+  const ss = document.getElementById('saveStatus');
+  ss.style.display = 'none'; ss.textContent = '';
 });
 
 // --- Verbindingstest ---
