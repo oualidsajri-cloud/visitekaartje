@@ -327,6 +327,29 @@
     </div>
   </div>
 
+<!-- Duplicaat popup -->
+<div id="dupOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;overflow-y:auto;padding:20px;">
+  <div style="background:#fff;border-radius:16px;max-width:560px;margin:0 auto;padding:24px;position:relative;">
+    <p style="font-weight:700;font-size:17px;margin:0 0 4px;">Mogelijk duplicaat gevonden</p>
+    <p style="color:#7a7367;font-size:14px;margin:0 0 20px;">Controleer welk contact je wilt bewaren.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div>
+        <p style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#7a7367;margin:0 0 8px;">Bestaand in database</p>
+        <div id="dupExisting" style="background:#f5f5f5;border-radius:10px;padding:14px;font-size:13px;line-height:1.8;"></div>
+      </div>
+      <div>
+        <p style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#7a7367;margin:0 0 8px;">Nieuw gescand</p>
+        <div id="dupNew" style="background:#eef6f0;border-radius:10px;padding:14px;font-size:13px;line-height:1.8;"></div>
+      </div>
+    </div>
+    <div style="display:grid;gap:8px;margin-top:16px;">
+      <button class="btn btn-primary" id="dupKeepNew">Gebruik nieuw — vervang bestaand</button>
+      <button class="btn btn-secondary" id="dupKeepBoth">Sla beide op</button>
+      <button class="btn btn-secondary" id="dupKeepOld" style="color:#a83210;">Behoud bestaand — gooi nieuw weg</button>
+    </div>
+  </div>
+</div>
+
 </main>
 
 <footer>
@@ -766,8 +789,39 @@ function showError(msg) {
 
 const WORKER_URL = 'https://autumn-sun-7aa9.oualidsajri.workers.dev';
 
-// --- vCard aanmaken en contact opslaan ---
-addContactBtn.addEventListener('click', () => {
+// --- vCard downloaden ---
+function downloadVcard(f) {
+  const nameParts = f.name.split(/\s+/);
+  const given  = nameParts.shift() || '';
+  const family = nameParts.join(' ');
+  const vcard = [
+    'BEGIN:VCARD', 'VERSION:3.0',
+    `N:${family};${given};;;`,
+    `FN:${f.name || 'Onbekend'}`,
+    f.org     ? `ORG:${f.org}`     : '',
+    f.title   ? `TITLE:${f.title}` : '',
+    f.phone   ? `TEL;TYPE=CELL:${f.phone}` : '',
+    f.email   ? `EMAIL:${f.email}` : '',
+    f.website ? `URL:${f.website.startsWith('http') ? f.website : 'https://' + f.website}` : '',
+    'END:VCARD'
+  ].filter(Boolean).join('\r\n');
+  const blob = new Blob([vcard], { type: 'text/vcard' });
+  const url  = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${(f.name || 'contact').replace(/\s+/g, '_')}.vcf`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+function formatContactCard(c) {
+  const row = (label, val) => val ? `<span style="color:#7a7367;font-size:11px">${label}</span><br><strong>${val}</strong><br>` : '';
+  return row('Naam', c.name) + row('Bedrijf', c.org) + row('Functie', c.title) +
+         row('Telefoon', c.phone) + row('E-mail', c.email) + row('Website', c.website);
+}
+
+// --- Knop: opslaan als contact ---
+addContactBtn.addEventListener('click', async () => {
   const f = {
     name:    fields.name.value.trim(),
     org:     fields.org.value.trim(),
@@ -777,38 +831,51 @@ addContactBtn.addEventListener('click', () => {
     website: fields.website.value.trim(),
   };
 
-  // vCard downloaden voor iPhone-Contacten
-  const nameParts = f.name.split(/\s+/);
-  const given  = nameParts.shift() || '';
-  const family = nameParts.join(' ');
+  // Duplicaatcheck
+  let duplicates = [];
+  try {
+    const res = await fetch(WORKER_URL + '/contacts/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-app-pin': apiKeyInput.value.trim() },
+      body: JSON.stringify({ name: f.name, phone: f.phone, email: f.email }),
+    });
+    if (res.ok) duplicates = await res.json();
+  } catch {}
 
-  const vcard = [
-    'BEGIN:VCARD',
-    'VERSION:3.0',
-    `N:${family};${given};;;`,
-    `FN:${f.name || 'Onbekend'}`,
-    f.org     ? `ORG:${f.org}`                                                            : '',
-    f.title   ? `TITLE:${f.title}`                                                        : '',
-    f.phone   ? `TEL;TYPE=CELL:${f.phone}`                                                : '',
-    f.email   ? `EMAIL:${f.email}`                                                        : '',
-    f.website ? `URL:${f.website.startsWith('http') ? f.website : 'https://' + f.website}`: '',
-    'END:VCARD'
-  ].filter(Boolean).join('\r\n');
+  if (duplicates.length > 0) {
+    // Toon popup met het meest recente duplicaat
+    const dup = duplicates[0];
+    document.getElementById('dupExisting').innerHTML = formatContactCard(dup);
+    document.getElementById('dupNew').innerHTML = formatContactCard(f);
+    document.getElementById('dupOverlay').style.display = 'block';
 
-  const blob = new Blob([vcard], { type: 'text/vcard' });
-  const url  = URL.createObjectURL(blob);
-
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${(f.name || 'contact').replace(/\s+/g, '_')}.vcf`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
-
-  // Contact opslaan in database (op de achtergrond)
-  saveContactToDb(f);
+    // Knoppen
+    document.getElementById('dupKeepNew').onclick = () => {
+      closeDupPopup();
+      downloadVcard(f);
+      saveContactToDb(f, dup.id); // vervangt bestaand
+    };
+    document.getElementById('dupKeepBoth').onclick = () => {
+      closeDupPopup();
+      downloadVcard(f);
+      saveContactToDb(f); // beide bewaren
+    };
+    document.getElementById('dupKeepOld').onclick = () => {
+      closeDupPopup();
+      // Niks opslaan, alleen vCard downloaden zodat contact toch naar telefoon gaat
+      downloadVcard(f);
+      const ss = document.getElementById('saveStatus');
+      ss.textContent = 'Bestaand contact bewaard ✓'; ss.style.color = 'var(--muted)'; ss.style.display = 'block';
+    };
+  } else {
+    downloadVcard(f);
+    saveContactToDb(f);
+  }
 });
+
+function closeDupPopup() {
+  document.getElementById('dupOverlay').style.display = 'none';
+}
 
 async function saveContactToDb(f) {
   const saveStatus = document.getElementById('saveStatus');

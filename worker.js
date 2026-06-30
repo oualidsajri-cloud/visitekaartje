@@ -46,12 +46,43 @@ export default {
       });
     }
 
+    // --- POST /contacts/check → duplicaten zoeken ---
+    if (url.pathname === '/contacts/check' && request.method === 'POST') {
+      if (!checkPin(request, env)) return unauthorized();
+      let body;
+      try { body = await request.json(); } catch { return new Response('Bad request', { status: 400 }); }
+      const { name='', phone='', email='' } = body;
+      const { results } = await env.DB.prepare(`
+        SELECT * FROM contacts WHERE
+          (LOWER(TRIM(name)) = LOWER(TRIM(?)) AND TRIM(?) != '')
+          OR (TRIM(phone) = TRIM(?) AND TRIM(?) != '')
+          OR (LOWER(TRIM(email)) = LOWER(TRIM(?)) AND TRIM(?) != '')
+        ORDER BY scanned_at DESC LIMIT 5
+      `).bind(name, name, phone, phone, email, email).all();
+      return new Response(JSON.stringify(results), {
+        headers: { ...CORS, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // --- DELETE /contacts/:id → contact verwijderen ---
+    if (url.pathname.startsWith('/contacts/') && request.method === 'DELETE') {
+      if (!checkPin(request, env)) return unauthorized();
+      const id = url.pathname.split('/').pop();
+      await env.DB.prepare('DELETE FROM contacts WHERE id = ?').bind(id).run();
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { ...CORS, 'Content-Type': 'application/json' }
+      });
+    }
+
     // --- POST /contacts → contact opslaan ---
     if (url.pathname === '/contacts' && request.method === 'POST') {
       if (!checkPin(request, env)) return unauthorized();
       let body;
       try { body = await request.json(); } catch { return new Response('Bad request', { status: 400 }); }
-      const { name='', org='', title='', phone='', email='', website='' } = body;
+      const { name='', org='', title='', phone='', email='', website='', replaceId=null } = body;
+      if (replaceId) {
+        await env.DB.prepare('DELETE FROM contacts WHERE id = ?').bind(replaceId).run();
+      }
       await env.DB.prepare(
         'INSERT INTO contacts (name,org,title,phone,email,website,scanned_at) VALUES (?,?,?,?,?,?,?)'
       ).bind(name, org, title, phone, email, website, new Date().toISOString()).run();

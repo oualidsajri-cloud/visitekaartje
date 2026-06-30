@@ -1,0 +1,9 @@
+name = "autumn-sun-7aa9"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+account_id = "78a765d979433f09fdfa6974cd0ea47d"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "visitekaartje"
+database_id = "0935eeb5-3c4e-47bd-9a5a-a057c8877248"
