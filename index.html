@@ -250,7 +250,7 @@
 <header>
   <div class="eyebrow">Werkt direct in Safari · geen App Store</div>
   <h1>Kaartje → Contact</h1>
-  <p>Maak een foto van een visitekaartje. AI herkent de gegevens, jij controleert ze, en met één tik staat het contact in je iPhone-Contacten.</p>
+  <p>Maak een foto van een visitekaartje. AI herkent de gegevens, jij controleert ze, en met één tik staat het contact opgeslagen.</p>
 </header>
 
 <main>
@@ -321,7 +321,7 @@
   <div class="panel hidden" id="actionPanel">
     <p class="section-title"><span class="num">3</span>Voeg toe aan Contacten</p>
     <div class="stack">
-      <button class="btn btn-primary" id="addContactBtn">Voeg toe aan iPhone-Contacten</button>
+      <button class="btn btn-primary" id="addContactBtn">Opslaan als contact</button>
       <button class="btn btn-secondary" id="rescanBtn">Nieuwe scan</button>
       <p id="saveStatus" style="display:none;font-size:13px;margin:4px 0 0;text-align:center;"></p>
     </div>
@@ -645,17 +645,20 @@ async function analyzeCard(file) {
   const mediaType = file.type || 'image/jpeg';
   setStatus('Visitekaartje herkennen via AI…');
 
-  const prompt = `Dit is een foto van een visitekaartje. Extraheer de volgende gegevens en geef ze terug als JSON — gebruik lege string "" als een veld niet gevonden wordt. Geef ALLEEN de JSON terug, zonder uitleg of markdown.
+  const prompt = `Dit is een foto van een visitekaartje. Lees de tekst EXACT over zoals hij op het kaartje staat — let op spelling, hoofdletters, punten en bijzondere tekens. Gebruik NOOIT aannames of autocorrectie.
 
-Formaat:
+Extraheer de volgende velden en geef ze terug als JSON. Gebruik "" als een veld ontbreekt. Geef ALLEEN de JSON terug, geen uitleg of markdown.
+
 {
-  "name": "volledige naam",
-  "org": "bedrijfsnaam",
+  "name": "volledige naam van de persoon",
+  "org": "bedrijfs- of organisatienaam",
   "title": "functietitel",
-  "phone": "telefoonnummer (voorkeur: mobiel)",
+  "phone": "telefoonnummer (voorkeur: mobiel, anders vast)",
   "email": "e-mailadres",
   "website": "website URL"
-}`;
+}
+
+Neem telefoonnummers over inclusief landcode als die er staat. Bij meerdere telefoonnummers kies je het mobiele nummer.`;
 
   let responseBody;
   try {
@@ -667,7 +670,7 @@ Formaat:
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'claude-sonnet-4-6',
         max_tokens: 512,
         messages: [{
           role: 'user',
