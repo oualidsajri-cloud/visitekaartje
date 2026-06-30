@@ -398,29 +398,224 @@ document.getElementById('retryBtn').addEventListener('click', () => {
   }
 });
 
-// --- Afbeelding verkleinen + → base64 ---
-// iPhone-foto's zijn 4-10 MB; API accepteert max ~3,75 MB → eerst comprimeren
+// --- Kaartje detecteren, croppen en perspectief corrigeren ---
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    const objectUrl = URL.createObjectURL(file);
+    const objUrl = URL.createObjectURL(file);
     img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      const MAX = 1600;
-      let w = img.width, h = img.height;
-      if (w > MAX || h > MAX) {
-        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
-        else        { w = Math.round(w * MAX / h); h = MAX; }
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-      resolve(dataUrl.split(',')[1]);
+      URL.revokeObjectURL(objUrl);
+      try { resolve(cropAndWarpCard(img)); }
+      catch(e) { resolve(fallbackFull(img)); }
     };
     img.onerror = reject;
-    img.src = objectUrl;
+    img.src = objUrl;
   });
+}
+
+function fallbackFull(img) {
+  const fc = document.createElement('canvas');
+  fc.width = img.width; fc.height = img.height;
+  fc.getContext('2d').drawImage(img, 0, 0);
+  return fc.toDataURL('image/jpeg', 0.97).split(',')[1];
+}
+
+function cropAndWarpCard(img) {
+  // Detecteer op verkleinde versie voor snelheid
+  const PROC = 800;
+  const scale = Math.min(1, PROC / Math.max(img.width, img.height));
+  const pw = Math.round(img.width * scale), ph = Math.round(img.height * scale);
+
+  const pc = document.createElement('canvas');
+  pc.width = pw; pc.height = ph;
+  pc.getContext('2d').drawImage(img, 0, 0, pw, ph);
+  const px = pc.getContext('2d').getImageData(0, 0, pw, ph).data;
+
+  // Grayscale
+  const gray = new Uint8ClampedArray(pw * ph);
+  for (let i = 0; i < pw * ph; i++)
+    gray[i] = (77 * px[i*4] + 150 * px[i*4+1] + 29 * px[i*4+2]) >> 8;
+
+  // Gaussian blur 5×5
+  const K5 = [1,4,6,4,1, 4,16,24,16,4, 6,24,36,24,6, 4,16,24,16,4, 1,4,6,4,1];
+  const blurred = new Uint8ClampedArray(pw * ph);
+  for (let y = 2; y < ph-2; y++)
+    for (let x = 2; x < pw-2; x++) {
+      let s = 0;
+      for (let dy = -2; dy <= 2; dy++)
+        for (let dx = -2; dx <= 2; dx++)
+          s += gray[(y+dy)*pw+(x+dx)] * K5[(dy+2)*5+(dx+2)];
+      blurred[y*pw+x] = s >> 8;
+    }
+
+  // Sobel edges
+  const Kx = [-1,0,1,-2,0,2,-1,0,1], Ky = [-1,-2,-1,0,0,0,1,2,1];
+  const edges = new Uint8ClampedArray(pw * ph);
+  for (let y = 1; y < ph-1; y++)
+    for (let x = 1; x < pw-1; x++) {
+      let gx = 0, gy = 0;
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          const p = blurred[(y+dy)*pw+(x+dx)], ki = (dy+1)*3+(dx+1);
+          gx += p*Kx[ki]; gy += p*Ky[ki];
+        }
+      edges[y*pw+x] = Math.min(255, Math.sqrt(gx*gx + gy*gy));
+    }
+
+  // Hough line transform (180 hoeken)
+  const diag = Math.ceil(Math.sqrt(pw*pw + ph*ph));
+  const NR = diag*2, NT = 180;
+  const accum = new Int32Array(NT * NR);
+  const cosT = new Float32Array(NT), sinT = new Float32Array(NT);
+  for (let t = 0; t < NT; t++) {
+    cosT[t] = Math.cos(t * Math.PI / NT);
+    sinT[t] = Math.sin(t * Math.PI / NT);
+  }
+  for (let y = 0; y < ph; y++)
+    for (let x = 0; x < pw; x++) {
+      if (edges[y*pw+x] < 80) continue;
+      for (let t = 0; t < NT; t++) {
+        const r = Math.round(x*cosT[t] + y*sinT[t]) + diag;
+        if (r >= 0 && r < NR) accum[t*NR+r]++;
+      }
+    }
+
+  // Pieken zoeken met non-maximum suppression
+  const minV = Math.max(25, Math.min(pw, ph) * 0.12);
+  const peaks = [];
+  for (let t = 0; t < NT; t++)
+    for (let r = 3; r < NR-3; r++) {
+      const v = accum[t*NR+r];
+      if (v < minV) continue;
+      let ok = true;
+      outer: for (let dt = -5; dt <= 5; dt++)
+        for (let dr = -3; dr <= 3; dr++) {
+          if (!dt && !dr) continue;
+          if (accum[((t+dt+NT)%NT)*NR+(r+dr)] > v) { ok = false; break outer; }
+        }
+      if (ok) peaks.push({theta: t*Math.PI/NT, r: r-diag, v});
+    }
+  peaks.sort((a,b) => b.v - a.v);
+
+  // Selecteer 2 horizontale en 2 verticale lijnen
+  const horiz = peaks.filter(l => { const d = l.theta*180/Math.PI; return d >= 60 && d <= 120; });
+  const vert  = peaks.filter(l => { const d = l.theta*180/Math.PI; return d < 30 || d > 150; });
+
+  function pick2(lines, minSep) {
+    const out = [];
+    for (const l of lines) {
+      if (!out.length) { out.push(l); continue; }
+      if (out.length === 1 && Math.abs(l.r - out[0].r) >= minSep) { out.push(l); break; }
+    }
+    return out.length === 2 ? out : null;
+  }
+
+  const h2 = pick2(horiz, ph * 0.2);
+  const v2  = pick2(vert,  pw * 0.2);
+  if (!h2 || !v2) return fallbackFull(img);
+
+  // Snijpunten van de 4 kaartrand-lijnen
+  function intersect(l1, l2) {
+    const det = Math.cos(l1.theta)*Math.sin(l2.theta) - Math.cos(l2.theta)*Math.sin(l1.theta);
+    if (Math.abs(det) < 0.01) return null;
+    return {
+      x: (l1.r*Math.sin(l2.theta) - l2.r*Math.sin(l1.theta)) / det,
+      y: (l2.r*Math.cos(l1.theta) - l1.r*Math.cos(l2.theta)) / det,
+    };
+  }
+  const corners = [];
+  for (const hl of h2) for (const vl of v2) { const pt = intersect(hl, vl); if (pt) corners.push(pt); }
+  if (corners.length !== 4) return fallbackFull(img);
+
+  // Valideer: gedetecteerd vlak moet redelijk groot zijn
+  const xs = corners.map(p=>p.x), ys = corners.map(p=>p.y);
+  const qw = Math.max(...xs)-Math.min(...xs), qh = Math.max(...ys)-Math.min(...ys);
+  if (qw < pw*0.15 || qh < ph*0.15 || qw > pw*0.98 || qh > ph*0.98) return fallbackFull(img);
+
+  // Schaal hoekpunten terug naar originele resolutie
+  const src = corners.map(p => [p.x/scale, p.y/scale]);
+
+  // Orden als TL, TR, BR, BL
+  const sums = src.map(p=>p[0]+p[1]), diffs = src.map(p=>p[0]-p[1]);
+  const tl = src[sums.indexOf(Math.min(...sums))];
+  const br = src[sums.indexOf(Math.max(...sums))];
+  const tr = src[diffs.indexOf(Math.max(...diffs))];
+  const bl = src[diffs.indexOf(Math.min(...diffs))];
+  const ord = [tl, tr, br, bl];
+
+  function d2(a,b) { return Math.sqrt((a[0]-b[0])**2+(a[1]-b[1])**2); }
+  const dstW = Math.round(Math.max(d2(ord[0],ord[1]), d2(ord[3],ord[2])));
+  const dstH = Math.round(Math.max(d2(ord[0],ord[3]), d2(ord[1],ord[2])));
+
+  // Homografie berekenen via DLT (Gauss-Jordan)
+  const dstPts = [[0,0],[dstW-1,0],[dstW-1,dstH-1],[0,dstH-1]];
+  const A = [];
+  for (let i = 0; i < 4; i++) {
+    const [x,y] = ord[i], [xp,yp] = dstPts[i];
+    A.push([-x,-y,-1,0,0,0,xp*x,xp*y,xp]);
+    A.push([0,0,0,-x,-y,-1,yp*x,yp*y,yp]);
+  }
+  const bv = A.map(r=>-r[8]);
+  const mv = A.map(r=>r.slice(0,8));
+  const aug = mv.map((r,i)=>[...r, bv[i]]);
+  for (let c = 0; c < 8; c++) {
+    let mx = c;
+    for (let r = c+1; r < 8; r++) if (Math.abs(aug[r][c])>Math.abs(aug[mx][c])) mx=r;
+    [aug[c],aug[mx]] = [aug[mx],aug[c]];
+    if (Math.abs(aug[c][c])<1e-12) continue;
+    for (let r = 0; r < 8; r++) {
+      if (r===c) continue;
+      const f = aug[r][c]/aug[c][c];
+      for (let j = c; j <= 8; j++) aug[r][j] -= f*aug[c][j];
+    }
+  }
+  const H = [...aug.map((r,i)=>r[8]/r[i]), 1];
+
+  // Inverse van 3×3 homografie
+  const [ha,hb,hc,hd,he,hf,hg,hh,hk] = H;
+  const det3 = ha*(he*hk-hf*hh)-hb*(hd*hk-hf*hg)+hc*(hd*hh-he*hg);
+  const iH = [
+    (he*hk-hf*hh)/det3, (hc*hh-hb*hk)/det3, (hb*hf-hc*he)/det3,
+    (hf*hg-hd*hk)/det3, (ha*hk-hc*hg)/det3, (hc*hd-ha*hf)/det3,
+    (hd*hh-he*hg)/det3, (hb*hg-ha*hh)/det3, (ha*he-hb*hd)/det3,
+  ];
+
+  // Lees originele pixels en warp naar uitvoer-canvas
+  const srcC = document.createElement('canvas');
+  srcC.width = img.width; srcC.height = img.height;
+  srcC.getContext('2d').drawImage(img, 0, 0);
+  const sp = srcC.getContext('2d').getImageData(0, 0, img.width, img.height).data;
+  const sw = img.width, sh = img.height;
+
+  const dstC = document.createElement('canvas');
+  dstC.width = dstW; dstC.height = dstH;
+  const dctx = dstC.getContext('2d');
+  const di = dctx.createImageData(dstW, dstH);
+  const dp = di.data;
+
+  for (let y = 0; y < dstH; y++)
+    for (let x = 0; x < dstW; x++) {
+      const w3 = iH[6]*x + iH[7]*y + iH[8];
+      const sx = (iH[0]*x + iH[1]*y + iH[2]) / w3;
+      const sy = (iH[3]*x + iH[4]*y + iH[5]) / w3;
+      const ix = (y*dstW+x)*4;
+      if (sx < 0 || sx > sw-1 || sy < 0 || sy > sh-1) {
+        dp[ix]=dp[ix+1]=dp[ix+2]=255; dp[ix+3]=255; continue;
+      }
+      const x0=Math.floor(sx), y0=Math.floor(sy);
+      const x1=Math.min(x0+1,sw-1), y1=Math.min(y0+1,sh-1);
+      const fx=sx-x0, fy=sy-y0;
+      const i00=(y0*sw+x0)*4, i10=(y0*sw+x1)*4, i01=(y1*sw+x0)*4, i11=(y1*sw+x1)*4;
+      for (let ch = 0; ch < 3; ch++)
+        dp[ix+ch] = Math.round(
+          (1-fx)*(1-fy)*sp[i00+ch] + fx*(1-fy)*sp[i10+ch] +
+          (1-fx)*fy*sp[i01+ch]     + fx*fy*sp[i11+ch]
+        );
+      dp[ix+3] = 255;
+    }
+
+  dctx.putImageData(di, 0, 0);
+  return dstC.toDataURL('image/jpeg', 0.97).split(',')[1];
 }
 
 // --- Claude API aanroepen ---
@@ -436,7 +631,7 @@ async function analyzeCard(file) {
     try { localStorage.setItem(STORAGE_KEY, apiKey); } catch(e) {}
   }
 
-  setStatus('Afbeelding voorbereiden…');
+  setStatus('Kaartje uitknippen…');
 
   let base64;
   try {
