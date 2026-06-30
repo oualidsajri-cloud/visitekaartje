@@ -8,6 +8,44 @@
   :root{
     --ink:#1b1f23;
     --paper:#faf8f4;
+    localStorage.setItem(STORAGE_KEY, apiKey);
+    try { localStorage.setItem(STORAGE_KEY, apiKey); } catch(e) {}
+  }
+
+  setStatus('Afbeelding voorbereiden…');                                                         
+Wat er mis was: Op iOS Safari (zeker als je het bestand opent via iCloud Drive of een file://-link) gooit localStorage.getItem() meteen een Secuipt al bij het opstarten — nog vóórdatde knoppen een listener kregen. Vandaar dat niets werkte.
+
+Fix: alle drie de localStorage-aanroepen zitten nu in een try/catch. Als opslaan niet lukt, gaat de rest van de app gewoon door.
+
+Wat je nu moet doen:
+1. Ververs de pagina op je telefoon (of open kaartje-scanner_2.html opnieuw)
+2. Voer je API-sleutel in
+3. Tik op Test verbinding — je zou nu "Bezig met verbinden…" en daarna het resultaat moeten zien
+
+result: localStorage-crash op iOS Safari gefixed; script initialiseerde niet waardoor alle knoppen dood leken
+
+✻ Brewed for 1m 49s
+
+※ recap: Visitekaart scanner app werkt nu op iOS Safari. De localStorage-crash is opgelost in kaartje-scanner_2.html. Volgende stap: open het bestand opnieuw op je telefoon en test de verbinding. (disable recaps in /config)
+
+❯ wat heb je aangepast dan? hij staat opedig nieuwe code
+
+Ik lees de huidige versie van het best
+
+  Read 1 file
+
+Hier is de volledige bijgewerkte code — kopieer dit en vervang de inhoud van je bestand op GitHub:
+
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kaartje → Contact</title>
+<style>
+  :root{
+    --ink:#1b1f23;
+    --paper:#faf8f4;
     --card:#ffffff;
     --line:#e4ddd1;
     --accent:#c4501c;
@@ -73,7 +111,7 @@
     border-radius:14px;
     cursor:pointer;
   }
-  .capture-zone svg{ width:40px; nt); }
+  .capture-zone svg{ width:40px; height:40px; color:var(--accent); }
   .capture-zone p{
     margin:0;
     font-size:13px;
@@ -125,8 +163,10 @@
     animation:spin 0.8s linear infinite;
     flex-shrink:0;
   }
-  @keyframes spin{ to{ transform:rotate(360deg);} }
-  .field{ margin-bottom:14px; }
+  @keyframes spin{ to{ transform:rotat
+  .field{
+    margin-bottom:14px;
+  }
   .field label{
     display:block;
     font-size:11px;
@@ -161,7 +201,9 @@
     margin-top:6px;
     line-height:1.5;
   }
-  .api-key-hint a{ color:var(--accent); }
+  .api-key-hint a{
+    color:var(--accent);
+  }
   .section-title{
     font-size:13px;
     font-weight:700;
@@ -251,29 +293,33 @@
 
 <main>
 
+  <!-- Stap 0: API-sleutel -->
   <div class="panel" id="apiPanel">
     <p class="section-title"><span class="num">0</span>Claude API-sleutel</p>
-    <div class="field api-key-fie
+    <div class="field api-key-field">
       <label for="apiKeyInput">API-sleutel</label>
       <input id="apiKeyInput" type="password" placeholder="sk-ant-api03-…" autocomplete="off" spellcheck="false">
     </div>
     <div class="save-key-row">
       <input type="checkbox" id="saveKeyCheck" checked>
-      <label for="saveKeyCheck">Sla sleutel op in dit apparaat (localStorage)</label>
+      <label for="saveKeyCheck">Sla slalStorage)</label>
     </div>
     <p class="api-key-hint">
-      Nog geen sleutel? Maak er gratis een aan op
+      Nog geen sleutel? Maak er gratis
       <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>.
       De sleutel wordt alleen vanaf jouw telefoon gebruikt en nooit ergens anders opgeslagen.
     </p>
     <div style="margin-top:12px">
-      <button class="btn btn-secondary" id="testApiBtn" style="font-size:14px;padding:10px 16px">Test verbinding</button>
+      <button class="btn btn-secondary" id="testApiBtn" style="font-size:14px;padding:10px 16px">Test
+verbinding</button>
     </div>
-    <div id="testResult"style="display:none;margin-top:10px;font-size:12px;border-radius:10px;padding:10px 12px;line-height:1.6;font-family:ui-monospace,monospace;white-space:pre-wrap;overflow-x:auto"></div>
+    <div id="testResult" style="display:none;margin-top:10px;font-size:12px;border-radius:10px;padding:10px
+12px;line-height:1.6;font-family:ui-mo:pre-wrap;overflow-x:auto"></div>
   </div>
 
+  <!-- Stap 1: Foto maken -->
   <div class="panel" id="captureCard">
-    <p class="section-title"><span foto</p>
+    <p class="section-title"><span class="num">1</span>Maak een foto</p>
     <label class="capture-zone" id="captureZone" for="cardInput">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h3l1.4-2h7.2L17 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.4"/></svg>
       <strong>Tik om te scannen</strong>
@@ -282,9 +328,10 @@
     <input id="cardInput" type="file" accept="image/*" capture="environment">
   </div>
 
+  <!-- Verwerking -->
   <div class="panel hidden" id="processingPanel">
     <img id="previewImg" class="preview-img" alt="Gescand visitekaartje">
-    <div class="status" id="statusLine">
+    <div class="status" id="statusLine
       <span class="spinner"></span>
       <span id="statusText">Bezig met herkennen…</span>
     </div>
@@ -294,16 +341,16 @@
     </div>
   </div>
 
+  <!-- Stap 2: Gegevens controleren --
   <div class="panel hidden" id="resultPanel">
     <p class="section-title"><span class="num">2</span>Controleer de gegevens</p>
     <div class="stack">
-      <div class="field"><label for="f-name">Naam</label><input id="f-name" type="text"
-placeholder="Voornaam Achternaam"
+      <div class="field"><label for="f-name">Naam</label><input id="f-name" type="text" placeholder="Voornaam Achternaam"></div>
       <div class="field"><label for="f-org">Bedrijf</label><input id="f-org" type="text" placeholder="Bedrijfsnaam"></div>
       <div class="field"><label for="f-title">Functie</label><input id="f-title" type="text" placeholder="Functietitel"></div>
       <div class="field"><label for="f-phone">Telefoon</label><input id="f-phone" type="tel" placeholder="+31 6 12345678"></div>
-      <div class="field"><label for="f-email">E-mail</label><input id="f-email" type="email" placeholder="naam@bedrijf.nl"></div>
-      <div class="field"><label for="f-website">Website</label><input id="f-website" type="text" placeholder="www.bedrijf.nl"></div>
+      <div class="field"><label for="fid="f-email" type="email"placeholder="naam@bedrijf.nl"></div>
+      <div class="field"><label for="fut id="f-website" type="text"placeholder="www.bedrijf.nl"></div>
     </div>
     <details>
       <summary>Ruwe API-respons bekijken</summary>
@@ -311,11 +358,12 @@ placeholder="Voornaam Achternaam"
     </details>
   </div>
 
-  <div class="panel hidden" id="actionPanel">
+  <!-- Stap 3: Opslaan -->
+  <div class="panel hidden" id="action
     <p class="section-title"><span class="num">3</span>Voeg toe aan Contacten</p>
     <div class="stack">
       <button class="btn btn-primary" id="addContactBtn">Voeg toe aan iPhone-Contacten</button>
-      <button class="btn btn-secoscan</button>
+      <button class="btn btn-secondary/button>
     </div>
   </div>
 
@@ -326,15 +374,16 @@ placeholder="Voornaam Achternaam"
 </footer>
 
 <script>
+// --- Elementen ---
 const apiKeyInput    = document.getElementById('apiKeyInput');
-const saveKeyCheck   = document.getElementById('saveKeyCheck');
+const saveKeyCheck   = document.getEle
 const cardInput      = document.getElementById('cardInput');
 const captureCard    = document.getElementById('captureCard');
-const processingPanel= document.gl');
-const previewImg     = document.getElementById('previewImg');
+const processingPanel= document.getElementById('processingPanel');
+const previewImg     = document.getEle
 const statusText     = document.getElementById('statusText');
 const errorBanner    = document.getElementById('errorBanner');
-const retryWrap      = document.g
+const retryWrap      = document.getElementById('retryWrap');
 const resultPanel    = document.getElementById('resultPanel');
 const actionPanel    = document.getElementById('actionPanel');
 const rawText        = document.getElementById('rawText');
@@ -345,26 +394,31 @@ const fields = {
   name:    document.getElementById('f-name'),
   org:     document.getElementById('f-org'),
   title:   document.getElementById('f-title'),
-  phone:   document.getElementById('f-phone'),
+  phone:   document.getElementById('f-
   email:   document.getElementById('f-email'),
   website: document.getElementById('f-website'),
 };
 
+// --- API-sleutel ophalen/opslaan ---
 const STORAGE_KEY = 'vc_scanner_apikey';
-const saved = localStorage.getItem(STORAGE_KEY);
-if (saved) apiKeyInput.value = sa
+let saved = null;
+try { saved = localStorage.getItem(STORAGE_KEY); } catch(e) {}
+if (saved) apiKeyInput.value = saved;
 
 apiKeyInput.addEventListener('change', () => {
-  if (saveKeyCheck.checked && apiKeyInput.value.trim())
-    localStorage.setItem(STORAGE_KEY, apiKeyInput.value.trim());
+  if (saveKeyCheck.checked && apiKeyInput.value.trim()) {
+    try { localStorage.setItem(STORAGE_KEY, apiKeyInput.value.trim()); } catch(e) {}
+  }
 });
 
+// --- Foto gekozen ---
 let lastFile = null;
 
 cardInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
   lastFile = file;
+
   previewImg.src = URL.createObjectURL(file);
   captureCard.classList.add('hidden');
   processingPanel.classList.remove('hidden');
@@ -372,13 +426,20 @@ cardInput.addEventListener('change', (e) => {
   actionPanel.classList.add('hidden');
   showError('');
   retryWrap.classList.add('hidden');
+
   analyzeCard(file);
 });
 
-document.getElementById('retryBtn() => {
-  if (lastFile) { showError(''); retryWrap.classList.add('hidden'); analyzeCard(lastFile); }
+document.getElementById('retryBtn').addEventListener('click', () => {
+  if (lastFile) {
+    showError('');
+    retryWrap.classList.add('hidden');
+    analyzeCard(lastFile);
+  }
 });
 
+// --- Afbeelding verkleinen + → base64 ---
+// iPhone-foto's zijn 4-10 MB; API accepteert max ~3,75 MB → eerst comprimeren
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -393,24 +454,30 @@ function fileToBase64(file) {
       }
       const canvas = document.createElement('canvas');
       canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]);
+      canvas.getContext('2d').drawImag
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      resolve(dataUrl.split(',')[1]);
     };
     img.onerror = reject;
     img.src = objectUrl;
   });
 }
 
-async function analyzeCard(file)
+// --- Claude API aanroepen ---
+async function analyzeCard(file) {
   const apiKey = apiKeyInput.value.trim();
   if (!apiKey) {
     showError('Voer eerst een API-sleutel in (zie stap 0 hierboven).');
     retryWrap.classList.remove('hidden');
     return;
   }
-  if (saveKeyCheck.checked) localStorage.setItem(STORAGE_KEY, apiKey);
+
+  if (saveKeyCheck.checked) {
+    try { localStorage.setItem(STORAGE_KEY, apiKey); } catch(e) {}
+  }
 
   setStatus('Afbeelding voorbereiden…');
+
   let base64;
   try {
     base64 = await fileToBase64(file);
@@ -420,9 +487,11 @@ async function analyzeCard(file)
     return;
   }
 
+  const mediaType = file.type || 'image/jpeg';
   setStatus('Visitekaartje herkennen via AI…');
 
-  const prompt = `Dit is een foto van een visitekaartje. Extraheer de volgende gegevens en geef ze terug als JSON — gebruik lege string "" als een veld niet gevonden wordt. Geef ALLEEN de JSON terug, zonder uitleg of markdown.
+  const prompt = `Dit is een foto van een visitekaartje. Extraheer de volgende gegevens en geef ze terug
+als JSON — gebruik lege string "" als  Geef ALLEEN de JSON terug, zonderuitleg of markdown.
 
 Formaat:
 {
@@ -447,15 +516,31 @@ Formaat:
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 512,
-        messages: [{ role: 'user', content: [
-          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
-          { type: 'text', text: prompt },
-        ]}],
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: mediaType,
+                data: base64,
+              },
+            },
+            {
+              type: 'text',
+              text: prompt,
+            },
+          ],
+        }],
       }),
     });
+
     responseBody = await res.json();
+
     if (!res.ok) {
-      showError(`API-fout ${res.status}: ${responseBody?.error?.message || res.statusText}`);
+      const msg = responseBody?.error?.message || res.statusText;
+      showError(`API-fout ${res.status}: ${msg}`);
       retryWrap.classList.remove('hidden');
       return;
     }
@@ -465,23 +550,25 @@ Formaat:
     return;
   }
 
-  const rawContent = responseBody
+  const rawContent = responseBody?.content?.[0]?.text || '';
   rawText.textContent = rawContent;
 
+  // JSON parseren (strip eventuele markdown code-blokken)
   const jsonStr = rawContent.replace(/```json?\s*/gi, '').replace(/```/g, '').trim();
   let parsed;
   try {
     parsed = JSON.parse(jsonStr);
   } catch (e) {
-    showError('AI gaf een onverwachte respons. Probeer opnieuw of gebruik een scherpere foto.');
-    retryWrap.classList.remove('h
+    showError('AI gaf een onverwachte w of gebruik een scherpere foto.');
+    retryWrap.classList.remove('hidden');
     return;
   }
 
+  // Velden vullen
   fields.name.value    = parsed.name    || '';
   fields.org.value     = parsed.org     || '';
   fields.title.value   = parsed.title   || '';
-  fields.phone.value   = parsed.p
+  fields.phone.value   = parsed.phone   || '';
   fields.email.value   = parsed.email   || '';
   fields.website.value = parsed.website || '';
 
@@ -496,56 +583,70 @@ function setStatus(msg) {
 }
 
 function showError(msg) {
-  if (!msg) { errorBanner.classList.add('hidden'); errorBanner.textContent = ''; return; }
+  if (!msg) {
+    errorBanner.classList.add('hidden');
+    errorBanner.textContent = '';
+    return;
+  }
   errorBanner.textContent = msg;
   errorBanner.classList.remove('hidden');
   document.querySelector('.spinner').style.display = 'none';
   statusText.textContent = 'Herkenning mislukt.';
 }
 
+// --- vCard aanmaken en downloaden ---
 addContactBtn.addEventListener('click', () => {
   const f = {
     name:    fields.name.value.trim(),
     org:     fields.org.value.trim(),
     title:   fields.title.value.trim(),
-    phone:   fields.phone.value.t
+    phone:   fields.phone.value.trim(),
     email:   fields.email.value.trim(),
     website: fields.website.value.trim(),
   };
-  const nameParts = f.name.split(
-  const given = nameParts.shift() || '';
+
+  const nameParts = f.name.split(/\s+/);
+  const given  = nameParts.shift() || '';
   const family = nameParts.join(' ');
+
   const vcard = [
-    'BEGIN:VCARD', 'VERSION:3.0',
+    'BEGIN:VCARD',
+    'VERSION:3.0',
     `N:${family};${given};;;`,
     `FN:${f.name || 'Onbekend'}`,
-    f.org     ? `ORG:${f.org}`     : '',
-    f.title   ? `TITLE:${f.title}` : '',
-    f.phone   ? `TEL;TYPE=CELL:${f.phone}` : '',
-    f.email   ? `EMAIL:${f.email}
-    f.website ? `URL:${f.website.startsWith('http') ? f.website : 'https://' + f.website}` : '',
+    f.org     ? `ORG:${f.org}`                                                            : '',
+    f.title   ? `TITLE:${f.title}`                           : '',
+    f.phone   ? `TEL;TYPE=CELL:${f.phone}`                                                : '',
+    f.email   ? `EMAIL:${f.email}`                                                        : '',
+    f.website ? `URL:${f.website.starthttps://' + f.website}`: '',
     'END:VCARD'
   ].filter(Boolean).join('\r\n');
 
-  const blob = new Blob([vcard],
-  const url = URL.createObjectURL(blob);
+  const blob = new Blob([vcard], { type: 'text/vcard' });
+  const url  = URL.createObjectURL(blo
+
   const a = document.createElement('a');
   a.href = url;
   a.download = `${(f.name || 'contact').replace(/\s+/g, '_')}.vcf`;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 });
 
+// --- Opnieuw scannen ---
 rescanBtn.addEventListener('click', () => {
   captureCard.classList.remove('hidden');
   resultPanel.classList.add('hidden');
   actionPanel.classList.add('hidden');
   processingPanel.classList.add('hidden');
-  cardInput.value = ''; lastFile = null;
+  cardInput.value = '';
+  lastFile = null;
   Object.values(fields).forEach(f => f.value = '');
 });
 
-document.getElementById('testApiB, async () => {
+// --- Verbindingstest ---
+document.getElementById('testApiBtn').addEventListener('click', async () => {
   const apiKey = apiKeyInput.value.trim();
   const box = document.getElementById('testResult');
   box.style.display = 'block';
@@ -576,20 +677,21 @@ document.getElementById('testApiB, async () => {
         messages: [{ role: 'user', content: 'Zeg alleen: OK' }],
       }),
     });
+
     const data = await res.json();
     if (res.ok) {
       box.style.background = '#eef6f0';
       box.style.color = '#2f7a4f';
-      box.textContent = 'VERBINDIontent?.[0]?.text ||JSON.stringify(data));
+      box.textContent = 'VERBINDING OK\nAntwoord: ' + (data?.content?.[0]?.text || JSON.stringify(data));
     } else {
       box.style.background = '#fff0ed';
-      box.style.color = '#a83210'
+      box.style.color = '#a83210';
       box.textContent = 'API-FOUT ' + res.status + '\n' + (data?.error?.message || JSON.stringify(data));
     }
   } catch (e) {
     box.style.background = '#fff0ed';
     box.style.color = '#a83210';
-    box.textContent = 'NETWERKFOUT\n' + e.name + ': ' + e.message + (e.stack ? '\n\n' + e.stack : '');
+    box.textContent = 'NETWERKFOUT\n'  (e.stack ? '\n\n' + e.stack : '');
   }
 });
 </script>
