@@ -1,13 +1,13 @@
-// Cloudflare Worker: Anthropic proxy + D1 contacten opslag
+﻿// Cloudflare Worker — Anthropic proxy + D1 contacten opslag
 
 //
-// Vereiste secrets (Workers → Settings → Variables and Secrets):
-//   ANTHROPIC_API_KEY  → jouw sk-ant-... sleutel
-//   APP_PIN            → zelfgekozen pincode (bijv. "0847")
-//   CONTACTS_TOKEN     → wachtwoord voor contactenoverzicht
+// Vereiste secrets (Workers â†’ Settings â†’ Variables and Secrets):
+//   ANTHROPIC_API_KEY  â†’ jouw sk-ant-... sleutel
+//   APP_PIN            â†’ zelfgekozen pincode (bijv. "0847")
+//   CONTACTS_TOKEN     â†’ wachtwoord voor contactenoverzicht
 //
-// Vereiste binding (Workers → Settings → Bindings → D1):
-//   DB                 → jouw D1 database "visitekaartje"
+// Vereiste binding (Workers â†’ Settings â†’ Bindings â†’ D1):
+//   DB                 â†’ jouw D1 database "visitekaartje"
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -23,14 +23,14 @@ export default {
 
     const url = new URL(request.url);
 
-    // --- GET /contacts → inlogscherm of contactenoverzicht ---
+    // --- GET /contacts â†’ inlogscherm of contactenoverzicht ---
     if (url.pathname === '/contacts' && request.method === 'GET') {
       return new Response(loginHtml(), {
         headers: { 'Content-Type': 'text/html;charset=UTF-8' }
       });
     }
 
-    // --- POST /contacts/login → token controleren, contacten tonen ---
+    // --- POST /contacts/login â†’ token controleren, contacten tonen ---
     if (url.pathname === '/contacts/login' && request.method === 'POST') {
       let body;
       try { body = await request.json(); } catch { return new Response('Bad request', { status: 400 }); }
@@ -47,7 +47,7 @@ export default {
       });
     }
 
-    // --- POST /contacts/check → duplicaten zoeken ---
+    // --- POST /contacts/check â†’ duplicaten zoeken ---
     if (url.pathname === '/contacts/check' && request.method === 'POST') {
       if (!checkPin(request, env)) return unauthorized();
       let body;
@@ -65,7 +65,7 @@ export default {
       });
     }
 
-    // --- DELETE /contacts/:id → contact verwijderen ---
+    // --- DELETE /contacts/:id â†’ contact verwijderen ---
     if (url.pathname.startsWith('/contacts/') && request.method === 'DELETE') {
       if (!checkPin(request, env)) return unauthorized();
       const id = url.pathname.split('/').pop();
@@ -75,7 +75,7 @@ export default {
       });
     }
 
-    // --- POST /contacts → contact opslaan ---
+    // --- POST /contacts â†’ contact opslaan ---
     if (url.pathname === '/contacts' && request.method === 'POST') {
       if (!checkPin(request, env)) return unauthorized();
       let body;
@@ -92,7 +92,7 @@ export default {
       });
     }
 
-    // --- POST / → Anthropic API proxy ---
+    // --- POST / â†’ Anthropic API proxy ---
     if (!checkPin(request, env)) return unauthorized();
 
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -114,7 +114,7 @@ export default {
 };
 
 function checkPin(request, env) {
-  if (!env.APP_PIN) return true; // geen PIN ingesteld → open (tijdelijk)
+  if (!env.APP_PIN) return true; // geen PIN ingesteld â†’ open (tijdelijk)
   return request.headers.get('x-app-pin') === env.APP_PIN;
 }
 
@@ -128,7 +128,7 @@ function loginHtml() {
   return `<!DOCTYPE html>
 <html lang="nl"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Contacten — inloggen</title>
+<title>Contacten â€” inloggen</title>
 <style>
   *{box-sizing:border-box}
   body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#faf8f4;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;}
@@ -203,3 +203,4 @@ function contactsHtml(rows) {
   <tbody>${rowsHtml}</tbody>
 </table></body></html>`;
 }
+
