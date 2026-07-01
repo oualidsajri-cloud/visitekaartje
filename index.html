@@ -115,15 +115,15 @@
     align-items:center;
     justify-content:space-between;
   }
-  .header-left{
+  .page-logo{
     display:flex;
-    align-items:center;
-    gap:12px;
+    justify-content:center;
+    padding:32px 0 16px;
   }
-  .header-logo{
-    height:40px;
+  .page-logo img{
+    height:52px;
     width:auto;
-    display:block;
+    opacity:0.75;
   }
   .header-brand{
     font-size:22px;
@@ -328,12 +328,9 @@
 </div>
 
 <header>
-  <div class="header-left">
-    <img src="Afbeelding1.png" alt="Laagland" class="header-logo">
-    <div>
-      <div class="header-brand">ScanCard</div>
-      <div class="header-sub">Visitekaartje → Contact</div>
-    </div>
+  <div>
+    <div class="header-brand">ScanCard</div>
+    <div class="header-sub">Visitekaartje → Contact</div>
   </div>
   <button class="lock-btn" id="lockBtn">Uitloggen</button>
 </header>
@@ -394,6 +391,10 @@
   </div>
 
 </main>
+
+<div class="page-logo">
+  <img src="Afbeelding1.png" alt="Laagland Machines Tools & Service">
+</div>
 
 <!-- Duplicaat popup -->
 <div id="dupOverlay">
