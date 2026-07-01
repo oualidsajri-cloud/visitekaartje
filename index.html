@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Kaartje → Contact</title>
+<title>ScanCard</title>
 <style>
   :root{
     --ink:#1b1f23;
@@ -25,31 +25,122 @@
     min-height:100vh;
     padding-bottom:48px;
   }
-  header{
-    padding:28px 20px 18px;
-    border-bottom:1px solid var(--line);
+
+  /* --- PIN Overlay --- */
+  .pin-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:var(--paper);
+    z-index:2000;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:32px 24px;
   }
-  header .eyebrow{
-    font-size:12px;
-    letter-spacing:.12em;
-    text-transform:uppercase;
+  .pin-overlay.visible{display:flex;}
+  .pin-logo{
+    font-size:34px;
+    font-weight:750;
     color:var(--accent);
-    font-weight:700;
+    letter-spacing:-0.03em;
     margin-bottom:6px;
   }
-  header h1{
-    margin:0;
-    font-size:26px;
-    font-weight:650;
-    letter-spacing:-0.01em;
-  }
-  header p{
-    margin:8px 0 0;
-    color:var(--muted);
+  .pin-tagline{
     font-size:14px;
-    line-height:1.5;
-    max-width:46ch;
+    color:var(--muted);
+    margin:0 0 36px;
+    text-align:center;
   }
+  .pin-card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding:28px 24px;
+    width:100%;
+    max-width:360px;
+  }
+  .pin-card label{
+    display:block;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--muted);
+    font-weight:700;
+    margin-bottom:8px;
+  }
+  .pin-card input[type=password]{
+    width:100%;
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:14px 16px;
+    font-size:22px;
+    letter-spacing:0.25em;
+    text-align:center;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:inherit;
+    margin-bottom:14px;
+  }
+  .pin-card input[type=password]:focus{
+    outline:none;
+    border-color:var(--accent);
+  }
+  .pin-error{
+    font-size:13px;
+    color:#a83210;
+    text-align:center;
+    margin:0 0 12px;
+    min-height:20px;
+  }
+  .save-pin-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    color:var(--muted);
+    margin-bottom:16px;
+  }
+  .save-pin-row input[type=checkbox]{
+    width:16px;height:16px;
+    accent-color:var(--accent);
+    flex-shrink:0;
+  }
+
+  /* --- Header --- */
+  header{
+    padding:20px 20px 14px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .header-brand{
+    font-size:26px;
+    font-weight:750;
+    color:var(--accent);
+    letter-spacing:-0.02em;
+    line-height:1;
+  }
+  .header-sub{
+    font-size:12px;
+    color:var(--muted);
+    margin-top:3px;
+    letter-spacing:.01em;
+  }
+  .lock-btn{
+    background:none;
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:7px 12px;
+    font-size:12px;
+    color:var(--muted);
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .lock-btn:active{background:var(--line);}
+
+  /* --- Main --- */
   main{
     max-width:480px;
     margin:0 auto;
@@ -68,19 +159,23 @@
     align-items:center;
     text-align:center;
     gap:14px;
-    padding:36px 16px;
+    padding:52px 16px;
     border:1.5px dashed var(--line);
     border-radius:14px;
     cursor:pointer;
+    user-select:none;
+    -webkit-user-select:none;
   }
-  .capture-zone svg{ width:40px; height:40px; color:var(--accent); }
+  .capture-zone svg{width:48px;height:48px;color:var(--accent);}
+  .capture-zone strong{font-size:17px;}
   .capture-zone p{
     margin:0;
     font-size:13px;
     color:var(--muted);
     max-width:30ch;
+    line-height:1.5;
   }
-  input[type=file]{ display:none; }
+  input[type=file]{display:none;}
   .btn{
     appearance:none;
     border:none;
@@ -91,17 +186,11 @@
     cursor:pointer;
     width:100%;
     text-align:center;
+    font-family:inherit;
   }
-  .btn-primary{
-    background:var(--accent);
-    color:var(--accent-ink);
-  }
-  .btn-primary:active{ filter:brightness(0.92); }
-  .btn-secondary{
-    background:transparent;
-    color:var(--ink);
-    border:1px solid var(--line);
-  }
+  .btn-primary{background:var(--accent);color:var(--accent-ink);}
+  .btn-primary:active{filter:brightness(0.92);}
+  .btn-secondary{background:transparent;color:var(--ink);border:1px solid var(--line);}
   .preview-img{
     width:100%;
     border-radius:12px;
@@ -125,10 +214,8 @@
     animation:spin 0.8s linear infinite;
     flex-shrink:0;
   }
-  @keyframes spin{ to{ transform:rotate(360deg);} }
-  .field{
-    margin-bottom:14px;
-  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .field{margin-bottom:14px;}
   .field label{
     display:block;
     font-size:11px;
@@ -148,24 +235,7 @@
     color:var(--ink);
     font-family:inherit;
   }
-  .field input:focus{
-    outline:none;
-    border-color:var(--accent);
-  }
-  .api-key-field input{
-    font-family:ui-monospace, monospace;
-    font-size:13px;
-    letter-spacing:0.03em;
-  }
-  .api-key-hint{
-    font-size:11px;
-    color:var(--muted);
-    margin-top:6px;
-    line-height:1.5;
-  }
-  .api-key-hint a{
-    color:var(--accent);
-  }
+  .field input:focus{outline:none;border-color:var(--accent);}
   .section-title{
     font-size:13px;
     font-weight:700;
@@ -173,27 +243,10 @@
     letter-spacing:.08em;
     color:var(--ink);
     margin:0 0 14px;
-    display:flex;
-    align-items:center;
-    gap:8px;
   }
-  .section-title .num{
-    width:20px;height:20px;
-    border-radius:50%;
-    background:var(--ink);
-    color:var(--paper);
-    font-size:11px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    flex-shrink:0;
-  }
-  .hidden{ display:none !important; }
-  .stack{ display:flex; flex-direction:column; gap:10px; }
+  .hidden{display:none !important;}
+  .stack{display:flex;flex-direction:column;gap:10px;}
   .error-banner{
-    display:flex;
-    align-items:flex-start;
-    gap:10px;
     background:#fff0ed;
     border:1px solid #f5c4b8;
     color:#a83210;
@@ -203,86 +256,85 @@
     line-height:1.5;
     margin-bottom:14px;
   }
-  details summary{
-    font-size:12px;
-    color:var(--muted);
-    cursor:pointer;
-    margin-top:6px;
-  }
-  .raw-text{
-    font-size:11px;
-    color:var(--muted);
-    background:var(--paper);
-    border:1px solid var(--line);
-    border-radius:10px;
-    padding:10px;
-    max-height:90px;
-    overflow:auto;
-    white-space:pre-wrap;
-    font-family:ui-monospace, monospace;
-    margin-top:8px;
-  }
-  footer{
-    max-width:480px;
-    margin:0 auto;
-    padding:0 20px;
-    color:var(--muted);
-    font-size:12px;
-    line-height:1.6;
-  }
-  .save-key-row{
+  .status-ok{
     display:flex;
     align-items:center;
     gap:8px;
-    margin-top:10px;
+    background:#eef6f0;
+    border:1px solid #c3dfc9;
+    color:var(--ok);
+    border-radius:10px;
+    padding:11px 14px;
+    font-size:14px;
+    font-weight:600;
+    margin-bottom:12px;
+  }
+  .status-checking{
+    display:flex;
+    align-items:center;
+    gap:8px;
     font-size:13px;
     color:var(--muted);
+    padding:8px 0;
+    margin-bottom:8px;
   }
-  .save-key-row input[type=checkbox]{
-    width:16px;height:16px;
-    accent-color:var(--accent);
-    flex-shrink:0;
+  details summary{font-size:12px;color:var(--muted);cursor:pointer;margin-top:6px;}
+  .raw-text{
+    font-size:11px;color:var(--muted);background:var(--paper);
+    border:1px solid var(--line);border-radius:10px;padding:10px;
+    max-height:90px;overflow:auto;white-space:pre-wrap;
+    font-family:ui-monospace,monospace;margin-top:8px;
+  }
+
+  /* --- Duplicaat popup --- */
+  #dupOverlay{
+    display:none;position:fixed;inset:0;
+    background:rgba(0,0,0,.5);z-index:1000;
+    overflow-y:auto;padding:20px;
+  }
+  #dupOverlay .dup-card{
+    background:#fff;border-radius:16px;
+    max-width:560px;margin:0 auto;padding:24px;
   }
 </style>
 </head>
 <body>
 
+<!-- PIN Overlay -->
+<div class="pin-overlay" id="pinOverlay">
+  <div class="pin-logo">ScanCard</div>
+  <p class="pin-tagline">Scan visitekaartjes. Direct opgeslagen.</p>
+  <div class="pin-card">
+    <label for="pinInput">Pincode</label>
+    <input id="pinInput" type="password" placeholder="••••" autocomplete="off" inputmode="numeric" maxlength="20">
+    <p class="pin-error" id="pinError"></p>
+    <div class="save-pin-row">
+      <input type="checkbox" id="savePinCheck" checked>
+      <label for="savePinCheck">Onthoud pincode op dit apparaat</label>
+    </div>
+    <button class="btn btn-primary" id="pinSubmit">Ontgrendelen</button>
+  </div>
+</div>
+
 <header>
-  <div class="eyebrow">Werkt direct in Safari · geen App Store</div>
-  <h1>Kaartje → Contact</h1>
-  <p>Maak een foto van een visitekaartje. AI herkent de gegevens, jij controleert ze, en met één tik staat het contact opgeslagen.</p>
+  <div>
+    <div class="header-brand">ScanCard</div>
+    <div class="header-sub">Visitekaartje → Contact</div>
+  </div>
+  <button class="lock-btn" id="lockBtn">Uitloggen</button>
 </header>
 
 <main>
 
-  <!-- Stap 0: Pincode -->
-  <div class="panel" id="apiPanel">
-    <p class="section-title"><span class="num">0</span>Pincode</p>
-    <div class="field api-key-field">
-      <label for="apiKeyInput">App-pincode</label>
-      <input id="apiKeyInput" type="password" placeholder="••••" autocomplete="off" inputmode="numeric" maxlength="20">
-    </div>
-    <div class="save-key-row">
-      <input type="checkbox" id="saveKeyCheck" checked>
-      <label for="saveKeyCheck">Onthoud pincode op dit apparaat</label>
-    </div>
-    <p class="api-key-hint">
-      Vul de pincode in die je in Cloudflare hebt ingesteld als <strong>APP_PIN</strong>.
-      De pincode wordt alleen lokaal opgeslagen en nooit verstuurd naar derden.
-    </p>
-    <div style="margin-top:12px">
-      <button class="btn btn-secondary" id="testApiBtn" style="font-size:14px;padding:10px 16px">Test verbinding</button>
-    </div>
-    <div id="testResult" style="display:none;margin-top:10px;font-size:12px;border-radius:10px;padding:10px 12px;line-height:1.6;font-family:ui-monospace,monospace;white-space:pre-wrap;overflow-x:auto"></div>
-  </div>
-
-  <!-- Stap 1: Foto maken -->
+  <!-- Scan zone -->
   <div class="panel" id="captureCard">
-    <p class="section-title"><span class="num">1</span>Maak een foto</p>
-    <label class="capture-zone" id="captureZone" for="cardInput">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h3l1.4-2h7.2L17 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.4"/></svg>
-      <strong>Tik om te scannen</strong>
-      <p>Camera opent direct. Leg het kaartje plat en zorg voor goed licht.</p>
+    <label class="capture-zone" for="cardInput">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+        <path d="M4 7h3l1.4-2h7.2L17 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/>
+        <circle cx="12" cy="13" r="3.4"/>
+      </svg>
+      <strong>Scan visitekaartje</strong>
+      <p>Tik om de camera te openen. Leg het kaartje plat in goed licht.</p>
     </label>
     <input id="cardInput" type="file" accept="image/*" capture="environment">
   </div>
@@ -290,8 +342,8 @@
   <!-- Verwerking -->
   <div class="panel hidden" id="processingPanel">
     <img id="previewImg" class="preview-img" alt="Gescand visitekaartje">
-    <div class="status" id="statusLine">
-      <span class="spinner"></span>
+    <div class="status">
+      <span class="spinner" id="procSpinner"></span>
       <span id="statusText">Bezig met herkennen…</span>
     </div>
     <div class="error-banner hidden" id="errorBanner"></div>
@@ -300,9 +352,9 @@
     </div>
   </div>
 
-  <!-- Stap 2: Gegevens controleren -->
+  <!-- Herkende gegevens -->
   <div class="panel hidden" id="resultPanel">
-    <p class="section-title"><span class="num">2</span>Controleer de gegevens</p>
+    <p class="section-title">Herkende gegevens</p>
     <div class="stack">
       <div class="field"><label for="f-name">Naam</label><input id="f-name" type="text" placeholder="Voornaam Achternaam"></div>
       <div class="field"><label for="f-org">Bedrijf</label><input id="f-org" type="text" placeholder="Bedrijfsnaam"></div>
@@ -312,24 +364,26 @@
       <div class="field"><label for="f-website">Website</label><input id="f-website" type="text" placeholder="www.bedrijf.nl"></div>
     </div>
     <details>
-      <summary>Ruwe API-respons bekijken</summary>
+      <summary>Ruwe AI-respons</summary>
       <div class="raw-text" id="rawText"></div>
     </details>
   </div>
 
-  <!-- Stap 3: Opslaan -->
+  <!-- Opslaan status + acties -->
   <div class="panel hidden" id="actionPanel">
-    <p class="section-title"><span class="num">3</span>Voeg toe aan Contacten</p>
+    <div id="saveStatusWrap"></div>
     <div class="stack">
-      <button class="btn btn-primary" id="addContactBtn">Opslaan als contact</button>
+      <button class="btn btn-primary hidden" id="addContactBtn">Voeg toe aan Contacten</button>
+      <button class="btn btn-secondary hidden" id="retrySaveBtn">Opnieuw opslaan</button>
       <button class="btn btn-secondary" id="rescanBtn">Nieuwe scan</button>
-      <p id="saveStatus" style="display:none;font-size:13px;margin:4px 0 0;text-align:center;"></p>
     </div>
   </div>
 
+</main>
+
 <!-- Duplicaat popup -->
-<div id="dupOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;overflow-y:auto;padding:20px;">
-  <div style="background:#fff;border-radius:16px;max-width:560px;margin:0 auto;padding:24px;position:relative;">
+<div id="dupOverlay">
+  <div class="dup-card">
     <p style="font-weight:700;font-size:17px;margin:0 0 4px;">Mogelijk duplicaat gevonden</p>
     <p style="color:#7a7367;font-size:14px;margin:0 0 20px;">Controleer welk contact je wilt bewaren.</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -350,28 +404,25 @@
   </div>
 </div>
 
-</main>
-
-<footer>
-  Alles verloopt via jouw eigen API-sleutel — de foto gaat rechtstreeks van je telefoon naar Anthropic en nergens anders naartoe. Na het tikken op "Voeg toe" opent het standaard iOS-scherm om het contact te bevestigen.
-</footer>
-
 <script>
+const WORKER_URL  = 'https://autumn-sun-7aa9.oualidsajri.workers.dev';
+const STORAGE_KEY = 'vc_scanner_apikey';
+
 // --- Elementen ---
-const apiKeyInput    = document.getElementById('apiKeyInput');
-const saveKeyCheck   = document.getElementById('saveKeyCheck');
-const cardInput      = document.getElementById('cardInput');
-const captureCard    = document.getElementById('captureCard');
-const processingPanel= document.getElementById('processingPanel');
-const previewImg     = document.getElementById('previewImg');
-const statusText     = document.getElementById('statusText');
-const errorBanner    = document.getElementById('errorBanner');
-const retryWrap      = document.getElementById('retryWrap');
-const resultPanel    = document.getElementById('resultPanel');
-const actionPanel    = document.getElementById('actionPanel');
-const rawText        = document.getElementById('rawText');
-const rescanBtn      = document.getElementById('rescanBtn');
-const addContactBtn  = document.getElementById('addContactBtn');
+const cardInput       = document.getElementById('cardInput');
+const captureCard     = document.getElementById('captureCard');
+const processingPanel = document.getElementById('processingPanel');
+const previewImg      = document.getElementById('previewImg');
+const statusText      = document.getElementById('statusText');
+const errorBanner     = document.getElementById('errorBanner');
+const retryWrap       = document.getElementById('retryWrap');
+const resultPanel     = document.getElementById('resultPanel');
+const actionPanel     = document.getElementById('actionPanel');
+const rawText         = document.getElementById('rawText');
+const rescanBtn       = document.getElementById('rescanBtn');
+const addContactBtn   = document.getElementById('addContactBtn');
+const retrySaveBtn    = document.getElementById('retrySaveBtn');
+const saveStatusWrap  = document.getElementById('saveStatusWrap');
 
 const fields = {
   name:    document.getElementById('f-name'),
@@ -382,16 +433,40 @@ const fields = {
   website: document.getElementById('f-website'),
 };
 
-// --- API-sleutel ophalen/opslaan ---
-const STORAGE_KEY = 'vc_scanner_apikey';
-let saved = null;
-try { saved = localStorage.getItem(STORAGE_KEY); } catch(e) {}
-if (saved) apiKeyInput.value = saved;
+// --- PIN ---
+let currentPin = '';
 
-apiKeyInput.addEventListener('change', () => {
-  if (saveKeyCheck.checked && apiKeyInput.value.trim()) {
-    try { localStorage.setItem(STORAGE_KEY, apiKeyInput.value.trim()); } catch(e) {}
+(function initPin() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    currentPin = saved;
+  } else {
+    document.getElementById('pinOverlay').classList.add('visible');
+    setTimeout(() => document.getElementById('pinInput').focus(), 100);
   }
+})();
+
+function submitPin() {
+  const pin = document.getElementById('pinInput').value.trim();
+  const err = document.getElementById('pinError');
+  if (!pin) { err.textContent = 'Voer een pincode in.'; return; }
+  currentPin = pin;
+  err.textContent = '';
+  if (document.getElementById('savePinCheck').checked) {
+    try { localStorage.setItem(STORAGE_KEY, pin); } catch(e) {}
+  }
+  document.getElementById('pinOverlay').classList.remove('visible');
+}
+
+document.getElementById('pinSubmit').addEventListener('click', submitPin);
+document.getElementById('pinInput').addEventListener('keydown', e => { if (e.key === 'Enter') submitPin(); });
+
+document.getElementById('lockBtn').addEventListener('click', () => {
+  currentPin = '';
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+  document.getElementById('pinInput').value = '';
+  document.getElementById('pinOverlay').classList.add('visible');
+  setTimeout(() => document.getElementById('pinInput').focus(), 100);
 });
 
 // --- Foto gekozen ---
@@ -409,19 +484,18 @@ cardInput.addEventListener('change', (e) => {
   actionPanel.classList.add('hidden');
   showError('');
   retryWrap.classList.add('hidden');
+  saveStatusWrap.innerHTML = '';
+  addContactBtn.classList.add('hidden');
+  retrySaveBtn.classList.add('hidden');
 
   analyzeCard(file);
 });
 
 document.getElementById('retryBtn').addEventListener('click', () => {
-  if (lastFile) {
-    showError('');
-    retryWrap.classList.add('hidden');
-    analyzeCard(lastFile);
-  }
+  if (lastFile) { showError(''); retryWrap.classList.add('hidden'); analyzeCard(lastFile); }
 });
 
-// --- Kaartje detecteren, croppen en perspectief corrigeren ---
+// --- Afbeelding crop & warp ---
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -444,7 +518,6 @@ function fallbackFull(img) {
 }
 
 function cropAndWarpCard(img) {
-  // Detecteer op verkleinde versie voor snelheid
   const PROC = 800;
   const scale = Math.min(1, PROC / Math.max(img.width, img.height));
   const pw = Math.round(img.width * scale), ph = Math.round(img.height * scale);
@@ -454,12 +527,10 @@ function cropAndWarpCard(img) {
   pc.getContext('2d').drawImage(img, 0, 0, pw, ph);
   const px = pc.getContext('2d').getImageData(0, 0, pw, ph).data;
 
-  // Grayscale
   const gray = new Uint8ClampedArray(pw * ph);
   for (let i = 0; i < pw * ph; i++)
     gray[i] = (77 * px[i*4] + 150 * px[i*4+1] + 29 * px[i*4+2]) >> 8;
 
-  // Gaussian blur 5×5
   const K5 = [1,4,6,4,1, 4,16,24,16,4, 6,24,36,24,6, 4,16,24,16,4, 1,4,6,4,1];
   const blurred = new Uint8ClampedArray(pw * ph);
   for (let y = 2; y < ph-2; y++)
@@ -471,7 +542,6 @@ function cropAndWarpCard(img) {
       blurred[y*pw+x] = s >> 8;
     }
 
-  // Sobel edges
   const Kx = [-1,0,1,-2,0,2,-1,0,1], Ky = [-1,-2,-1,0,0,0,1,2,1];
   const edges = new Uint8ClampedArray(pw * ph);
   for (let y = 1; y < ph-1; y++)
@@ -485,7 +555,6 @@ function cropAndWarpCard(img) {
       edges[y*pw+x] = Math.min(255, Math.sqrt(gx*gx + gy*gy));
     }
 
-  // Hough line transform (180 hoeken)
   const diag = Math.ceil(Math.sqrt(pw*pw + ph*ph));
   const NR = diag*2, NT = 180;
   const accum = new Int32Array(NT * NR);
@@ -503,7 +572,6 @@ function cropAndWarpCard(img) {
       }
     }
 
-  // Pieken zoeken met non-maximum suppression
   const minV = Math.max(25, Math.min(pw, ph) * 0.12);
   const peaks = [];
   for (let t = 0; t < NT; t++)
@@ -520,7 +588,6 @@ function cropAndWarpCard(img) {
     }
   peaks.sort((a,b) => b.v - a.v);
 
-  // Selecteer 2 horizontale en 2 verticale lijnen
   const horiz = peaks.filter(l => { const d = l.theta*180/Math.PI; return d >= 60 && d <= 120; });
   const vert  = peaks.filter(l => { const d = l.theta*180/Math.PI; return d < 30 || d > 150; });
 
@@ -537,7 +604,6 @@ function cropAndWarpCard(img) {
   const v2  = pick2(vert,  pw * 0.2);
   if (!h2 || !v2) return fallbackFull(img);
 
-  // Snijpunten van de 4 kaartrand-lijnen
   function intersect(l1, l2) {
     const det = Math.cos(l1.theta)*Math.sin(l2.theta) - Math.cos(l2.theta)*Math.sin(l1.theta);
     if (Math.abs(det) < 0.01) return null;
@@ -550,15 +616,11 @@ function cropAndWarpCard(img) {
   for (const hl of h2) for (const vl of v2) { const pt = intersect(hl, vl); if (pt) corners.push(pt); }
   if (corners.length !== 4) return fallbackFull(img);
 
-  // Valideer: gedetecteerd vlak moet redelijk groot zijn
   const xs = corners.map(p=>p.x), ys = corners.map(p=>p.y);
   const qw = Math.max(...xs)-Math.min(...xs), qh = Math.max(...ys)-Math.min(...ys);
   if (qw < pw*0.15 || qh < ph*0.15 || qw > pw*0.98 || qh > ph*0.98) return fallbackFull(img);
 
-  // Schaal hoekpunten terug naar originele resolutie
   const src = corners.map(p => [p.x/scale, p.y/scale]);
-
-  // Orden als TL, TR, BR, BL
   const sums = src.map(p=>p[0]+p[1]), diffs = src.map(p=>p[0]-p[1]);
   const tl = src[sums.indexOf(Math.min(...sums))];
   const br = src[sums.indexOf(Math.max(...sums))];
@@ -570,7 +632,6 @@ function cropAndWarpCard(img) {
   const dstW = Math.round(Math.max(d2(ord[0],ord[1]), d2(ord[3],ord[2])));
   const dstH = Math.round(Math.max(d2(ord[0],ord[3]), d2(ord[1],ord[2])));
 
-  // Homografie berekenen via DLT (Gauss-Jordan)
   const dstPts = [[0,0],[dstW-1,0],[dstW-1,dstH-1],[0,dstH-1]];
   const A = [];
   for (let i = 0; i < 4; i++) {
@@ -593,8 +654,6 @@ function cropAndWarpCard(img) {
     }
   }
   const H = [...aug.map((r,i)=>r[8]/r[i]), 1];
-
-  // Inverse van 3×3 homografie
   const [ha,hb,hc,hd,he,hf,hg,hh,hk] = H;
   const det3 = ha*(he*hk-hf*hh)-hb*(hd*hk-hf*hg)+hc*(hd*hh-he*hg);
   const iH = [
@@ -603,7 +662,6 @@ function cropAndWarpCard(img) {
     (hd*hh-he*hg)/det3, (hb*hg-ha*hh)/det3, (ha*he-hb*hd)/det3,
   ];
 
-  // Lees originele pixels en warp naar uitvoer-canvas
   const srcC = document.createElement('canvas');
   srcC.width = img.width; srcC.height = img.height;
   srcC.getContext('2d').drawImage(img, 0, 0);
@@ -644,28 +702,19 @@ function cropAndWarpCard(img) {
 // --- Telefoonnummer normaliseren ---
 function normalizePhone(raw) {
   if (!raw) return '';
-  // Verwijder (0) trunk-prefix: "+31 (0) 6..." of "0031 (0) 6..."
   let n = raw.replace(/\(\s*0\s*\)/g, '');
-  // Verwijder koppeltekens, spaties, punten — bewaar alleen cijfers en leading +
   const hasPlus = n.trimStart().startsWith('+');
   n = n.replace(/\D/g, '');
-  // Als het nummer met 00 begint (bijv. 0031), laat het zo
-  // Als er een + was, zet die terug
   if (hasPlus) n = '+' + n.replace(/^0+/, '');
   return n;
 }
 
-// --- Claude API aanroepen ---
+// --- AI analyse ---
 async function analyzeCard(file) {
-  const pin = apiKeyInput.value.trim();
-  if (!pin) {
-    showError('Voer eerst de pincode in (zie stap 0 hierboven).');
+  if (!currentPin) {
+    showError('Pincode niet ingesteld. Gebruik "Uitloggen" en log opnieuw in.');
     retryWrap.classList.remove('hidden');
     return;
-  }
-
-  if (saveKeyCheck.checked) {
-    try { localStorage.setItem(STORAGE_KEY, pin); } catch(e) {}
   }
 
   setStatus('Kaartje uitknippen…');
@@ -679,7 +728,6 @@ async function analyzeCard(file) {
     return;
   }
 
-  const mediaType = file.type || 'image/jpeg';
   setStatus('Visitekaartje herkennen via AI…');
 
   const prompt = `Dit is een foto van een visitekaartje. Lees de tekst EXACT over zoals hij op het kaartje staat — let op spelling, hoofdletters, punten en bijzondere tekens. Gebruik NOOIT aannames of autocorrectie.
@@ -702,7 +750,7 @@ Neem telefoonnummers over inclusief landcode als die er staat. Bij meerdere tele
     const res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: {
-        'x-app-pin': pin,
+        'x-app-pin': currentPin,
         'anthropic-version': '2023-06-01',
         'content-type': 'application/json',
       },
@@ -712,18 +760,8 @@ Neem telefoonnummers over inclusief landcode als die er staat. Bij meerdere tele
         messages: [{
           role: 'user',
           content: [
-            {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: mediaType,
-                data: base64,
-              },
-            },
-            {
-              type: 'text',
-              text: prompt,
-            },
+            { type: 'image', source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 } },
+            { type: 'text', text: prompt },
           ],
         }],
       }),
@@ -732,13 +770,16 @@ Neem telefoonnummers over inclusief landcode als die er staat. Bij meerdere tele
     responseBody = await res.json();
 
     if (!res.ok) {
-      const msg = responseBody?.error?.message || res.statusText;
-      showError(`API-fout ${res.status}: ${msg}`);
+      if (res.status === 401) {
+        showError('Ongeldige pincode. Gebruik "Uitloggen" en probeer opnieuw.');
+      } else {
+        showError(`API-fout ${res.status}: ${responseBody?.error?.message || res.statusText}`);
+      }
       retryWrap.classList.remove('hidden');
       return;
     }
   } catch (e) {
-    showError('Netwerk- of API-fout: ' + e.message + '. Controleer je internetverbinding.');
+    showError('Netwerkfout: ' + e.message);
     retryWrap.classList.remove('hidden');
     return;
   }
@@ -746,18 +787,16 @@ Neem telefoonnummers over inclusief landcode als die er staat. Bij meerdere tele
   const rawContent = responseBody?.content?.[0]?.text || '';
   rawText.textContent = rawContent;
 
-  // JSON parseren (strip eventuele markdown code-blokken)
   const jsonStr = rawContent.replace(/```json?\s*/gi, '').replace(/```/g, '').trim();
   let parsed;
   try {
     parsed = JSON.parse(jsonStr);
   } catch (e) {
-    showError('AI gaf een onverwachte respons terug. Probeer opnieuw of gebruik een scherpere foto.');
+    showError('AI gaf een onverwachte respons. Probeer opnieuw of gebruik een scherpere foto.');
     retryWrap.classList.remove('hidden');
     return;
   }
 
-  // Velden vullen
   fields.name.value    = parsed.name    || '';
   fields.org.value     = parsed.org     || '';
   fields.title.value   = parsed.title   || '';
@@ -768,30 +807,101 @@ Neem telefoonnummers over inclusief landcode als die er staat. Bij meerdere tele
   processingPanel.classList.add('hidden');
   resultPanel.classList.remove('hidden');
   actionPanel.classList.remove('hidden');
+
+  autoSave(getFieldValues());
 }
 
-function setStatus(msg) {
-  statusText.textContent = msg;
-  document.querySelector('.spinner').style.display = '';
-}
+// --- Auto-save na herkenning ---
+async function autoSave(f) {
+  saveStatusWrap.innerHTML = '<div class="status-checking"><span class="spinner"></span>Controleren op duplicaten…</div>';
+  addContactBtn.classList.add('hidden');
+  retrySaveBtn.classList.add('hidden');
 
-function showError(msg) {
-  if (!msg) {
-    errorBanner.classList.add('hidden');
-    errorBanner.textContent = '';
-    return;
+  let duplicates = [];
+  try {
+    const res = await fetch(WORKER_URL + '/contacts/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-app-pin': currentPin },
+      body: JSON.stringify({ name: f.name, phone: f.phone, email: f.email }),
+    });
+    if (res.ok) duplicates = await res.json();
+  } catch {}
+
+  if (duplicates.length > 0) {
+    saveStatusWrap.innerHTML = '';
+    const dup = duplicates[0];
+    document.getElementById('dupExisting').innerHTML = formatContactCard(dup);
+    document.getElementById('dupNew').innerHTML = formatContactCard(f);
+    document.getElementById('dupOverlay').style.display = 'block';
+
+    document.getElementById('dupKeepNew').onclick = async () => {
+      closeDupPopup();
+      const ok = await saveContactToDb(f, dup.id);
+      showSavedState(f, ok);
+    };
+    document.getElementById('dupKeepBoth').onclick = async () => {
+      closeDupPopup();
+      const ok = await saveContactToDb(f);
+      showSavedState(f, ok);
+    };
+    document.getElementById('dupKeepOld').onclick = () => {
+      closeDupPopup();
+      saveStatusWrap.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:6px 0">Bestaand contact bewaard.</div>';
+    };
+  } else {
+    const ok = await saveContactToDb(f);
+    showSavedState(f, ok);
   }
-  errorBanner.textContent = msg;
-  errorBanner.classList.remove('hidden');
-  document.querySelector('.spinner').style.display = 'none';
-  statusText.textContent = 'Herkenning mislukt.';
 }
 
-const WORKER_URL = 'https://autumn-sun-7aa9.oualidsajri.workers.dev';
+function showSavedState(f, savedOk) {
+  if (savedOk) {
+    saveStatusWrap.innerHTML = '<div class="status-ok">✓ Opgeslagen in database</div>';
+  } else {
+    saveStatusWrap.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:6px 0">Database niet bereikbaar — contact nog niet opgeslagen.</div>';
+    retrySaveBtn.classList.remove('hidden');
+  }
+  addContactBtn.classList.remove('hidden');
+  addContactBtn.onclick = () => downloadVcard(f);
+}
 
-// --- vCard downloaden ---
+retrySaveBtn.addEventListener('click', async () => {
+  retrySaveBtn.classList.add('hidden');
+  await autoSave(getFieldValues());
+});
+
+function getFieldValues() {
+  return {
+    name:    fields.name.value.trim(),
+    org:     fields.org.value.trim(),
+    title:   fields.title.value.trim(),
+    phone:   fields.phone.value.trim(),
+    email:   fields.email.value.trim(),
+    website: fields.website.value.trim(),
+  };
+}
+
+function closeDupPopup() {
+  document.getElementById('dupOverlay').style.display = 'none';
+}
+
+async function saveContactToDb(f, replaceId) {
+  try {
+    const body = replaceId ? { ...f, replaceId } : f;
+    const res = await fetch(WORKER_URL + '/contacts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-app-pin': currentPin },
+      body: JSON.stringify(body),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+// --- vCard downloaden (vereist gebruikersactie op iOS) ---
 function downloadVcard(f) {
-  const nameParts = f.name.split(/\s+/);
+  const nameParts = (f.name || '').split(/\s+/);
   const given  = nameParts.shift() || '';
   const family = nameParts.join(' ');
   const vcard = [
@@ -820,88 +930,21 @@ function formatContactCard(c) {
          row('Telefoon', c.phone) + row('E-mail', c.email) + row('Website', c.website);
 }
 
-// --- Knop: opslaan als contact ---
-addContactBtn.addEventListener('click', async () => {
-  const f = {
-    name:    fields.name.value.trim(),
-    org:     fields.org.value.trim(),
-    title:   fields.title.value.trim(),
-    phone:   fields.phone.value.trim(),
-    email:   fields.email.value.trim(),
-    website: fields.website.value.trim(),
-  };
-
-  // Duplicaatcheck
-  let duplicates = [];
-  try {
-    const res = await fetch(WORKER_URL + '/contacts/check', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-app-pin': apiKeyInput.value.trim() },
-      body: JSON.stringify({ name: f.name, phone: f.phone, email: f.email }),
-    });
-    if (res.ok) duplicates = await res.json();
-  } catch {}
-
-  if (duplicates.length > 0) {
-    // Toon popup met het meest recente duplicaat
-    const dup = duplicates[0];
-    document.getElementById('dupExisting').innerHTML = formatContactCard(dup);
-    document.getElementById('dupNew').innerHTML = formatContactCard(f);
-    document.getElementById('dupOverlay').style.display = 'block';
-
-    // Knoppen
-    document.getElementById('dupKeepNew').onclick = () => {
-      closeDupPopup();
-      downloadVcard(f);
-      saveContactToDb(f, dup.id); // vervangt bestaand
-    };
-    document.getElementById('dupKeepBoth').onclick = () => {
-      closeDupPopup();
-      downloadVcard(f);
-      saveContactToDb(f); // beide bewaren
-    };
-    document.getElementById('dupKeepOld').onclick = () => {
-      closeDupPopup();
-      // Niks opslaan, alleen vCard downloaden zodat contact toch naar telefoon gaat
-      downloadVcard(f);
-      const ss = document.getElementById('saveStatus');
-      ss.textContent = 'Bestaand contact bewaard ✓'; ss.style.color = 'var(--muted)'; ss.style.display = 'block';
-    };
-  } else {
-    downloadVcard(f);
-    saveContactToDb(f);
-  }
-});
-
-function closeDupPopup() {
-  document.getElementById('dupOverlay').style.display = 'none';
+// --- Status / errors ---
+function setStatus(msg) {
+  statusText.textContent = msg;
+  document.getElementById('procSpinner').style.display = '';
 }
 
-async function saveContactToDb(f) {
-  const saveStatus = document.getElementById('saveStatus');
-  try {
-    const res = await fetch(WORKER_URL + '/contacts', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-app-pin': apiKeyInput.value.trim(),
-      },
-      body: JSON.stringify(f),
-    });
-    if (res.ok) {
-      saveStatus.textContent = 'Opgeslagen in database ✓';
-      saveStatus.style.color = 'var(--ok)';
-    } else {
-      saveStatus.textContent = 'Database niet gekoppeld (zie instellingen)';
-      saveStatus.style.color = 'var(--muted)';
-    }
-  } catch {
-    saveStatus.textContent = '';
-  }
-  saveStatus.style.display = 'block';
+function showError(msg) {
+  if (!msg) { errorBanner.classList.add('hidden'); errorBanner.textContent = ''; return; }
+  errorBanner.textContent = msg;
+  errorBanner.classList.remove('hidden');
+  document.getElementById('procSpinner').style.display = 'none';
+  statusText.textContent = 'Herkenning mislukt.';
 }
 
-// --- Opnieuw scannen ---
+// --- Nieuwe scan ---
 rescanBtn.addEventListener('click', () => {
   captureCard.classList.remove('hidden');
   resultPanel.classList.add('hidden');
@@ -910,61 +953,9 @@ rescanBtn.addEventListener('click', () => {
   cardInput.value = '';
   lastFile = null;
   Object.values(fields).forEach(f => f.value = '');
-  const ss = document.getElementById('saveStatus');
-  ss.style.display = 'none'; ss.textContent = '';
-});
-
-// --- Verbindingstest ---
-document.getElementById('testApiBtn').addEventListener('click', async () => {
-  const pin = apiKeyInput.value.trim();
-  const box = document.getElementById('testResult');
-  box.style.display = 'block';
-
-  if (!pin) {
-    box.style.background = '#fff0ed';
-    box.style.color = '#a83210';
-    box.textContent = 'Voer eerst de pincode in.';
-    return;
-  }
-
-  box.style.background = '#f5f5f5';
-  box.style.color = '#555';
-  box.textContent = 'Bezig met verbinden…';
-
-  try {
-    const res = await fetch(WORKER_URL, {
-      method: 'POST',
-      headers: {
-        'x-app-pin': pin,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 16,
-        messages: [{ role: 'user', content: 'Zeg alleen: OK' }],
-      }),
-    });
-
-    const data = await res.json();
-    if (res.ok) {
-      box.style.background = '#eef6f0';
-      box.style.color = '#2f7a4f';
-      box.textContent = 'VERBINDING OK\nAntwoord: ' + (data?.content?.[0]?.text || JSON.stringify(data));
-    } else if (res.status === 401) {
-      box.style.background = '#fff0ed';
-      box.style.color = '#a83210';
-      box.textContent = 'ONGELDIGE PINCODE\nControleer je APP_PIN in Cloudflare.';
-    } else {
-      box.style.background = '#fff0ed';
-      box.style.color = '#a83210';
-      box.textContent = 'API-FOUT ' + res.status + '\n' + (data?.error?.message || JSON.stringify(data));
-    }
-  } catch (e) {
-    box.style.background = '#fff0ed';
-    box.style.color = '#a83210';
-    box.textContent = 'NETWERKFOUT\n' + e.name + ': ' + e.message + (e.stack ? '\n\n' + e.stack : '');
-  }
+  saveStatusWrap.innerHTML = '';
+  addContactBtn.classList.add('hidden');
+  retrySaveBtn.classList.add('hidden');
 });
 </script>
 
