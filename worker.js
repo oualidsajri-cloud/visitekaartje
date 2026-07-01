@@ -1,4 +1,5 @@
 // Cloudflare Worker: Anthropic proxy + D1 contacten opslag
+
 //
 // Vereiste secrets (Workers → Settings → Variables and Secrets):
 //   ANTHROPIC_API_KEY  → jouw sk-ant-... sleutel
