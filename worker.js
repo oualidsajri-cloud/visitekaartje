@@ -80,13 +80,21 @@ export default {
       if (!checkPin(request, env)) return unauthorized();
       let body;
       try { body = await request.json(); } catch { return new Response('Bad request', { status: 400 }); }
-      const { name='', org='', title='', phone='', email='', website='', replaceId=null } = body;
+      const { name='', org='', title='', phone='', email='', website='', address='', replaceId=null } = body;
       if (replaceId) {
         await env.DB.prepare('DELETE FROM contacts WHERE id = ?').bind(replaceId).run();
       }
-      await env.DB.prepare(
-        'INSERT INTO contacts (name,org,title,phone,email,website,scanned_at) VALUES (?,?,?,?,?,?,?)'
-      ).bind(name, org, title, phone, email, website, new Date().toISOString()).run();
+      const insert = () => env.DB.prepare(
+        'INSERT INTO contacts (name,org,title,phone,email,website,address,scanned_at) VALUES (?,?,?,?,?,?,?,?)'
+      ).bind(name, org, title, phone, email, website, address, new Date().toISOString()).run();
+      try {
+        await insert();
+      } catch (e) {
+        // Bestaande database mist de address-kolom → eenmalig toevoegen en opnieuw proberen
+        if (!String(e).includes('address')) throw e;
+        await env.DB.prepare('ALTER TABLE contacts ADD COLUMN address TEXT').run();
+        await insert();
+      }
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...CORS, 'Content-Type': 'application/json' }
       });
@@ -165,8 +173,8 @@ async function login() {
 document.getElementById('pw').addEventListener('keydown', e => { if(e.key==='Enter') login(); });
 function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function renderTable(rows){
-  const r=rows.map(r=>\`<tr><td>\${esc(r.name)}</td><td>\${esc(r.org)}</td><td>\${esc(r.title)}</td><td><a href="tel:\${esc(r.phone)}">\${esc(r.phone)}</a></td><td><a href="mailto:\${esc(r.email)}">\${esc(r.email)}</a></td><td>\${r.website?\`<a href="\${esc(r.website)}" target="_blank">\${esc(r.website)}</a>\`:''}</td><td>\${esc((r.scanned_at||'').slice(0,10))}</td></tr>\`).join('');
-  return \`<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contacten</title><style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:20px;max-width:960px;margin:0 auto;}h1{font-size:22px;font-weight:700;margin-bottom:4px;}.sub{color:#7a7367;font-size:13px;margin-bottom:16px;}table{width:100%;border-collapse:collapse;font-size:13px;}th{text-align:left;padding:8px 10px;background:#f0ece4;border-bottom:2px solid #e4ddd1;font-size:11px;text-transform:uppercase;letter-spacing:.06em;}td{padding:8px 10px;border-bottom:1px solid #f0ece4;vertical-align:top;}tr:hover td{background:#faf8f4;}a{color:#c4501c;text-decoration:none;}</style></head><body><h1>Gescande contacten</h1><p class="sub">\${rows.length} contact\${rows.length!==1?'en':''}</p><table><thead><tr><th>Naam</th><th>Bedrijf</th><th>Functie</th><th>Telefoon</th><th>E-mail</th><th>Website</th><th>Datum</th></tr></thead><tbody>\${r}</tbody></table></body></html>\`;
+  const r=rows.map(r=>\`<tr><td>\${esc(r.name)}</td><td>\${esc(r.org)}</td><td>\${esc(r.title)}</td><td><a href="tel:\${esc(r.phone)}">\${esc(r.phone)}</a></td><td><a href="mailto:\${esc(r.email)}">\${esc(r.email)}</a></td><td>\${r.website?\`<a href="\${esc(r.website)}" target="_blank">\${esc(r.website)}</a>\`:''}</td><td>\${esc(r.address)}</td><td>\${esc((r.scanned_at||'').slice(0,10))}</td></tr>\`).join('');
+  return \`<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contacten</title><style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:20px;max-width:960px;margin:0 auto;}h1{font-size:22px;font-weight:700;margin-bottom:4px;}.sub{color:#7a7367;font-size:13px;margin-bottom:16px;}table{width:100%;border-collapse:collapse;font-size:13px;}th{text-align:left;padding:8px 10px;background:#f0ece4;border-bottom:2px solid #e4ddd1;font-size:11px;text-transform:uppercase;letter-spacing:.06em;}td{padding:8px 10px;border-bottom:1px solid #f0ece4;vertical-align:top;}tr:hover td{background:#faf8f4;}a{color:#c4501c;text-decoration:none;}</style></head><body><h1>Gescande contacten</h1><p class="sub">\${rows.length} contact\${rows.length!==1?'en':''}</p><table><thead><tr><th>Naam</th><th>Bedrijf</th><th>Functie</th><th>Telefoon</th><th>E-mail</th><th>Website</th><th>Adres</th><th>Datum</th></tr></thead><tbody>\${r}</tbody></table></body></html>\`;
 }
 </script></body></html>`;
 }
@@ -179,6 +187,7 @@ function contactsHtml(rows) {
       <td><a href="tel:${esc(r.phone)}">${esc(r.phone)}</a></td>
       <td><a href="mailto:${esc(r.email)}">${esc(r.email)}</a></td>
       <td>${r.website ? `<a href="${esc(r.website)}" target="_blank">${esc(r.website)}</a>` : ''}</td>
+      <td>${esc(r.address)}</td>
       <td>${esc((r.scanned_at||'').slice(0,10))}</td>
     </tr>`).join('');
 
@@ -199,7 +208,7 @@ function contactsHtml(rows) {
 <h1>Gescande contacten</h1>
 <p class="sub">${rows.length} contact${rows.length !== 1 ? 'en' : ''}</p>
 <table>
-  <thead><tr><th>Naam</th><th>Bedrijf</th><th>Functie</th><th>Telefoon</th><th>E-mail</th><th>Website</th><th>Datum</th></tr></thead>
+  <thead><tr><th>Naam</th><th>Bedrijf</th><th>Functie</th><th>Telefoon</th><th>E-mail</th><th>Website</th><th>Adres</th><th>Datum</th></tr></thead>
   <tbody>${rowsHtml}</tbody>
 </table></body></html>`;
 }

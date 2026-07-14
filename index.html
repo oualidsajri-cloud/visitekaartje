@@ -373,6 +373,7 @@
       <div class="field"><label for="f-phone">Telefoon</label><input id="f-phone" type="tel" placeholder="+31 6 12345678"></div>
       <div class="field"><label for="f-email">E-mail</label><input id="f-email" type="email" placeholder="naam@bedrijf.nl"></div>
       <div class="field"><label for="f-website">Website</label><input id="f-website" type="text" placeholder="www.bedrijf.nl"></div>
+      <div class="field"><label for="f-address">Adres</label><input id="f-address" type="text" placeholder="Straat 1, 1234 AB Plaats"></div>
     </div>
     <details>
       <summary>Ruwe AI-respons</summary>
@@ -446,6 +447,7 @@ const fields = {
   phone:   document.getElementById('f-phone'),
   email:   document.getElementById('f-email'),
   website: document.getElementById('f-website'),
+  address: document.getElementById('f-address'),
 };
 
 // --- PIN ---
@@ -755,7 +757,8 @@ Extraheer de volgende velden en geef ze terug als JSON. Gebruik "" als een veld 
   "title": "functietitel",
   "phone": "telefoonnummer (voorkeur: mobiel, anders vast)",
   "email": "e-mailadres",
-  "website": "website URL"
+  "website": "website URL",
+  "address": "volledig bedrijfsadres (straat + huisnummer, postcode, plaats; land alleen als het op het kaartje staat)"
 }
 
 Neem telefoonnummers over inclusief landcode als die er staat. Bij meerdere telefoonnummers kies je het mobiele nummer.`;
@@ -818,6 +821,7 @@ Neem telefoonnummers over inclusief landcode als die er staat. Bij meerdere tele
   fields.phone.value   = normalizePhone(parsed.phone || '');
   fields.email.value   = parsed.email   || '';
   fields.website.value = parsed.website || '';
+  fields.address.value = parsed.address || '';
 
   processingPanel.classList.add('hidden');
   resultPanel.classList.remove('hidden');
@@ -893,6 +897,7 @@ function getFieldValues() {
     phone:   fields.phone.value.trim(),
     email:   fields.email.value.trim(),
     website: fields.website.value.trim(),
+    address: fields.address.value.trim(),
   };
 }
 
@@ -928,6 +933,7 @@ function downloadVcard(f) {
     f.phone   ? `TEL;TYPE=CELL:${f.phone}` : '',
     f.email   ? `EMAIL:${f.email}` : '',
     f.website ? `URL:${f.website.startsWith('http') ? f.website : 'https://' + f.website}` : '',
+    f.address ? `ADR;TYPE=WORK:;;${f.address.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,')};;;;` : '',
     'END:VCARD'
   ].filter(Boolean).join('\r\n');
   const blob = new Blob([vcard], { type: 'text/vcard' });
@@ -942,7 +948,8 @@ function downloadVcard(f) {
 function formatContactCard(c) {
   const row = (label, val) => val ? `<span style="color:#7a7367;font-size:11px">${label}</span><br><strong>${val}</strong><br>` : '';
   return row('Naam', c.name) + row('Bedrijf', c.org) + row('Functie', c.title) +
-         row('Telefoon', c.phone) + row('E-mail', c.email) + row('Website', c.website);
+         row('Telefoon', c.phone) + row('E-mail', c.email) + row('Website', c.website) +
+         row('Adres', c.address);
 }
 
 // --- Status / errors ---
