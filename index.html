@@ -767,10 +767,12 @@ Extraheer de volgende velden en geef ze terug als JSON. Gebruik "" als een veld 
   "street": "straatnaam + huisnummer",
   "postal_code": "postcode",
   "city": "plaats",
-  "country": "land (alleen als het op het kaartje staat)"
+  "country": "land, voluit in het Nederlands (bv. 'België', 'Nederland', 'Duitsland')"
 }
 
-Neem telefoonnummers over inclusief landcode als die er staat. Bij meerdere telefoonnummers kies je het mobiele nummer.`;
+Neem telefoonnummers over inclusief landcode als die er staat. Bij meerdere telefoonnummers kies je het mobiele nummer.
+
+Bepaal het land met de volgende voorrang: 1) als het land als woord op het kaartje staat, gebruik dat. 2) anders leid je het af uit de landcode van het telefoonnummer (bv. +32 of een "BE"-prefix vóór het nummer = België, +31/NL = Nederland, +49/DE = Duitsland) of uit het topleveldomein van het e-mailadres of de website (.be = België, .nl = Nederland, .de = Duitsland, enz.). Gebruik altijd de volledige landnaam, nooit alleen de code.`;
 
   let responseBody;
   try {
